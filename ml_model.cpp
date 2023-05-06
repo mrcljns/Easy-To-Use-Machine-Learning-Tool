@@ -171,7 +171,7 @@ public:
           new_inputs.push_back(neuron.get_output());
         }
       } else {
-        new_inputs = inputs[Range(0, inputs.size()-1)];
+        new_inputs = std::vector<float>(inputs.begin(), inputs.end() - 1);
       }
 
       std::vector<Neuron>& layer_neurons = m_layers[i].get_neurons();
@@ -180,7 +180,7 @@ public:
         NumericVector neuron_weights = layer_neurons[j].get_weights();
 
         for(int k=0; k<new_inputs.size(); k++){
-          neuron_weights[k] += learning_rate * layer_neurons[k].get_delta() * new_inputs[k];
+          neuron_weights[k] += learning_rate * layer_neurons[j].get_delta() * new_inputs[k];
         }
         neuron_weights[neuron_weights.size()-1] += learning_rate * layer_neurons[j].get_delta();
       }
@@ -193,7 +193,7 @@ public:
 
       for(int i=0; i<X_train.nrow(); i++){
         NumericVector outputs = this -> forward_prop(X_train.row(i));
-        NumericVector expected(num_outputs);
+        NumericVector expected(num_outputs, 0.0);
         expected[static_cast<int>(X_train.row(i)[X_train.row(i).size()-1])] = 1.0;
 
         for(int x=0; x<num_outputs; x++){
