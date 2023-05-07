@@ -38,14 +38,24 @@ public:
       m_output = 1.0f / (1.0f + std::exp(-m_activation));
     } else if(m_activ_func == "relu"){
       m_output = std::max(0.0f, m_activation);
+    } else if(m_activ_func == "tanh"){
+      m_output = std::tanh(m_activation);
     } else{
-      m_output = tanhf(m_activation);
+      m_output = m_activation;
     }
 
   };
 
   float transfer_derivative(){
-    return static_cast<float>(m_output * (1.0-m_output));
+    if(m_activ_func == "sigmoid"){
+      return static_cast<float>(m_output * (1.0-m_output));
+    } else if(m_activ_func == "relu"){
+        return static_cast<float>(m_output>=0);
+    } else if(m_activ_func == "tanh"){
+      return static_cast<float>(1.0-std::pow(m_output, 2));
+    } else{
+      return 1.0;
+    }
   };
 
   float get_output(){
@@ -117,9 +127,21 @@ public:
 
   }
 
-  void init_network(int n_inputs, int n_hidden, int n_outputs, std::string activ_func){
+  void init_network(int n_inputs, int n_hidden, int n_outputs, std::string activ_func, 
+                    std::string problem_type){
+    
+    m_problem_type = problem_type;
+    
     this -> add_layer(n_hidden, n_inputs+1, activ_func);
-    this -> add_layer(n_outputs, n_hidden+1, activ_func);
+    this -> add_layer(n_hidden, n_inputs+1, activ_func);
+    
+    // output layer
+    if(m_problem_type == "classification"){
+      this -> add_layer(n_outputs, n_hidden+1, "sigmoid");
+    }
+    else{
+      this -> add_layer(1, n_hidden+1, "");
+    }
   }
 
   void add_layer(int num_neurons, int num_weights, std::string activ_func){
@@ -162,6 +184,26 @@ public:
       }
     }
   }
+  
+  void backward_prop_regression(float expected){
+    for(int i=num_layers; i --> 0;){
+      std::vector<Neuron>& layer_neurons = m_layers[i].get_neurons();
+      
+      for(int j=0; j<layer_neurons.size(); j++){
+        float error = 0.0;
+        
+        if (i == num_layers-1){
+          error = expected - layer_neurons[j].get_output();
+        }
+        else{
+          for(auto& neu : m_layers[i+1].get_neurons()){
+            error += (neu.get_weights()[j] * neu.get_delta());
+          }
+        }
+        layer_neurons[j].set_delta(error * layer_neurons[j].transfer_derivative());
+      }
+    }
+  }
 
   void update_weights(NumericVector inputs, float learning_rate){
     for(int i=0; i<num_layers; i++){
@@ -178,41 +220,65 @@ public:
 
       for(int j=0;j<layer_neurons.size(); j++){
         NumericVector neuron_weights = layer_neurons[j].get_weights();
-
-        for(int k=0; k<new_inputs.size(); k++){
-          neuron_weights[k] += learning_rate * layer_neurons[j].get_delta() * new_inputs[k];
-        }
-        neuron_weights[neuron_weights.size()-1] += learning_rate * layer_neurons[j].get_delta();
+          for(int k=0; k<new_inputs.size(); k++){
+            neuron_weights[k] += learning_rate * layer_neurons[j].get_delta() * new_inputs[k];
+          }
+          neuron_weights[neuron_weights.size()-1] += learning_rate * layer_neurons[j].get_delta();
       }
     }
   }
 
-  void train(NumericMatrix X_train, float learning_rate, int epochs, int num_outputs){
-    for(int epoch=0; epoch<epochs; epoch++){
-      float sum_error = 0;
-
-      for(int i=0; i<X_train.nrow(); i++){
-        NumericVector outputs = this -> forward_prop(X_train.row(i));
-        NumericVector expected(num_outputs, 0.0);
-        expected[static_cast<int>(X_train.row(i)[X_train.row(i).size()-1])] = 1.0;
-
-        for(int x=0; x<num_outputs; x++){
-          sum_error += static_cast<float>(std::pow((expected[x] - outputs[x]), 2));
+  void train(NumericMatrix X_train, NumericVector y_train, float learning_rate, int epochs, 
+             int num_outputs){
+    if(m_problem_type == "classification"){
+      for(int epoch=0; epoch<epochs; epoch++){
+        float sum_error = 0;
+  
+        for(int i=0; i<X_train.nrow(); i++){
+          NumericVector outputs = this -> forward_prop(X_train.row(i));
+          NumericVector expected(num_outputs, 0.0);
+          expected[static_cast<int>(X_train.row(i)[X_train.row(i).size()-1])] = 1.0;
+  
+          for(int x=0; x<num_outputs; x++){
+            sum_error += static_cast<float>(expected[x] * std::log(outputs[x]));
+          }
+          this -> backward_prop(expected);
+          this -> update_weights(X_train.row(i), learning_rate);
         }
-        this -> backward_prop(expected);
-        this -> update_weights(X_train.row(i), learning_rate);
+        std::cout << "[>] epoch=" << epoch << ", learning_rate=" << learning_rate << ", error=" << sum_error << std::endl;
       }
-      std::cout << "[>] epoch=" << epoch << ", learning_rate=" << learning_rate << ", error=" << sum_error << std::endl;
+    } else{
+      
+      NumericVector expected = y_train;
+      
+      for(int epoch=0; epoch<epochs; epoch++){
+        float sum_error = 0;
+        
+        for(int i=0; i<expected.size(); i++){
+          NumericVector outputs = this -> forward_prop(X_train.row(i));
+          
+          sum_error += static_cast<float>(std::pow((expected[i] - outputs[i]), 2));
+
+          this -> backward_prop_regression(expected[i]);
+          this -> update_weights(X_train.row(i), learning_rate);
+        }
+        std::cout << "[>] epoch=" << epoch << ", learning_rate=" << learning_rate << ", error=" << sum_error << std::endl;
+      }
     }
   }
 
   float predict(NumericVector input){
     NumericVector outputs = this -> forward_prop(input);
-    return std::max_element(outputs.begin(), outputs.end()) - outputs.begin();
+    if(m_problem_type == "classification"){
+      return std::max_element(outputs.begin(), outputs.end()) - outputs.begin();
+    } else{
+      return outputs[0];
+    }
   }
 
 private:
   int num_layers;
+  std::string m_problem_type;
   std::vector<Layer> m_layers;
 };
 
