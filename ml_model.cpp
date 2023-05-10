@@ -133,7 +133,6 @@ public:
     m_problem_type = problem_type;
     
     this -> add_layer(n_hidden, n_inputs+1, activ_func);
-    this -> add_layer(n_hidden, n_inputs+1, activ_func);
     
     // output layer
     if(m_problem_type == "classification"){
@@ -237,7 +236,7 @@ public:
         for(int i=0; i<X_train.nrow(); i++){
           NumericVector outputs = this -> forward_prop(X_train.row(i));
           NumericVector expected(num_outputs, 0.0);
-          expected[static_cast<int>(X_train.row(i)[X_train.row(i).size()-1])] = 1.0;
+          expected[static_cast<int>(y_train[i])] = 1.0;
   
           for(int x=0; x<num_outputs; x++){
             sum_error += static_cast<float>(expected[x] * std::log(outputs[x]));
