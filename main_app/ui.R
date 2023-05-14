@@ -54,11 +54,22 @@ navbarPage(
              sidebarPanel(
                checkboxGroupInput(
                  inputId = "column_choice",
-                 label = "Choose columns:",
-                 selected = "white",
+                 label = "Choose columns for preprocessing:",
+                 selected = NULL,
                  choiceNames = c(),
-                 choiceValues = c()
-               )
+                 choiceValues = c(),
+                 inline = FALSE
+               ),
+               tags$hr(),
+               radioButtons(
+                 inputId = "transform_choice",
+                 label = "Transformation method:",
+                 selected = "None",
+                 choiceNames = c("Standardization", "Normalization"),
+                 choiceValues = list(c("center", "scale"), "range"),
+                 inline = TRUE
+               ),
+               actionButton("preprocess", "Do the preprocessing")
              ),
              mainPanel(
                DT::dataTableOutput("content2")
