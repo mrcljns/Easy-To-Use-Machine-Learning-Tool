@@ -86,9 +86,15 @@ private:
   float m_delta;
   
   void init_weights(int num_weights){
-    for (int i=0; i<num_weights; i++){
-      weights.push_back(static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX));
+    if(m_activ_func == "sigmoid" | m_activ_func == "tanh"){
+      weights = runif(num_weights, -(1.0 / std::sqrt(num_weights)), (1.0 / std::sqrt(num_weights)));
     }
+    else{
+      weights = rnorm(num_weights, 0, std::sqrt(2.0/num_weights));
+    }
+    // for (int i=0; i<num_weights; i++){
+    //   weights.push_back(static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX));
+    // }
   };
 };
 
