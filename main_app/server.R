@@ -46,6 +46,13 @@ function(input, output, session) {
       temp <- predict(preproc, temp)
       values$df[,input$column_choice] <- temp
     }
+    
+    if(input$imputation_method == "Mean"){
+    }
+    else if(input$imputation_method == "Median"){
+      all_column_median <- apply(values$df, 2, median, na.rm=TRUE)
+      for(i in colnames(values$df))
+        values$df[,i][is.na(values$df[,i])] <- all_column_median[i]
+    }
   })
-  
 }

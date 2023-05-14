@@ -35,9 +35,7 @@ navbarPage(
                                  "Double Quote" = '"',
                                  "Single Quote" = "'"),
                      selected = '"')
-        
       ),
-      
       # Main panel for displaying outputs
       mainPanel(
         
@@ -69,12 +67,20 @@ navbarPage(
                  choiceValues = c("Standardization", "Normalization", "None"),
                  inline = TRUE
                ),
+               
+               # Input: Select imputation method
+               radioButtons("imputation_method", "Impute",
+                            selected = "Mean",
+                            choiceNames = c("Mean", "Median"),
+                            choiceValues = c("Mean", "Median"),
+                            inline = TRUE),
+               
+               tags$hr(),
                actionButton("preprocess", "Do the preprocessing")
              ),
              mainPanel(
                DT::dataTableOutput("content2")
              )
-             
            )
            )
 )
