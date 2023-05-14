@@ -34,8 +34,18 @@ function(input, output, session) {
   })
   
   observeEvent(input$preprocess, {
-    temp <- values$df[,input$column_choice]
-    values$df <- temp
+    if(input$transform_choice == "Standardization"){
+      temp = as.data.frame(values$df[,input$column_choice])
+      preproc <- preProcess(temp, method=c("center", "scale"))
+      temp <- predict(preproc, temp)
+      values$df[,input$column_choice] <- temp
+    }
+    else if(input$transform_choice == "Normalization"){
+      temp = as.data.frame(values$df[,input$column_choice])
+      preproc <- preProcess(temp, method=c("range"))
+      temp <- predict(preproc, temp)
+      values$df[,input$column_choice] <- temp
+    }
   })
   
 }

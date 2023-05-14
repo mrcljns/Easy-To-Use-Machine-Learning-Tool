@@ -65,8 +65,8 @@ navbarPage(
                  inputId = "transform_choice",
                  label = "Transformation method:",
                  selected = "None",
-                 choiceNames = c("Standardization", "Normalization"),
-                 choiceValues = list(c("center", "scale"), "range"),
+                 choiceNames = c("Standardization", "Normalization", "None"),
+                 choiceValues = c("Standardization", "Normalization", "None"),
                  inline = TRUE
                ),
                actionButton("preprocess", "Do the preprocessing")
