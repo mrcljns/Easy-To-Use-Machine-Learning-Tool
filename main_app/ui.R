@@ -34,16 +34,7 @@ navbarPage(
                      choices = c(None = "",
                                  "Double Quote" = '"',
                                  "Single Quote" = "'"),
-                     selected = '"'),
-        
-        # Horizontal line
-        tags$hr(),
-        
-        # Input: Select number of rows to display
-        radioButtons("disp", "Display",
-                     choices = c(Head = "head",
-                                 All = "all"),
-                     selected = "head")
+                     selected = '"')
         
       ),
       
@@ -51,7 +42,7 @@ navbarPage(
       mainPanel(
         
         # Output: Data file
-        DT::dataTableOutput("contents")
+        DT::dataTableOutput("content1")
         
       )
       
@@ -65,11 +56,12 @@ navbarPage(
                  inputId = "column_choice",
                  label = "Choose columns:",
                  selected = "white",
-                 choices = c()
+                 choiceNames = c(),
+                 choiceValues = c()
                )
              ),
              mainPanel(
-               
+               DT::dataTableOutput("content2")
              )
              
            )

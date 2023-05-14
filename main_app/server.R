@@ -25,18 +25,8 @@ function(input, output, session) {
     )
   })
   
-  output$contents <- DT::renderDataTable(DT::datatable({
-    
-    df()
-    
-    if(input$disp == "head") {
-      return(head(df()))
-    }
-    else {
-      return(df())
-    }
-    
-  }), options = list(scrollX = TRUE))
+  output$content1 <- DT::renderDataTable(DT::datatable(({df()}), options = list(scrollX = TRUE)))
+  output$content2 <- DT::renderDataTable(DT::datatable(({df()}), options = list(scrollX = TRUE)))
   
   observe({
     req(input$file1)
@@ -44,7 +34,8 @@ function(input, output, session) {
     updateCheckboxGroupInput(
       session,
       "column_choice",
-      choices = dfnames
+      choiceNames = dfnames,
+      choiceValues = dfnames
     )
   })
   
