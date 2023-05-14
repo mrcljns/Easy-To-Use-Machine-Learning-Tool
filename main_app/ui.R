@@ -2,47 +2,44 @@ library(ggplot2)
 
 navbarPage(
   "EasyNet",
-  # App title ----
   
   tabPanel("Uploading files",
     
-  # Sidebar layout with input and output definitions ----
     sidebarLayout(
       
-      # Sidebar panel for inputs ----
       sidebarPanel(
         
-        # Input: Select a file ----
+        # Input: Select a file
         fileInput("file1", "Choose CSV File",
                   multiple = FALSE,
                   accept = c("text/csv",
                              "text/comma-separated-values,text/plain",
                              ".csv")),
         
-        # Horizontal line ----
+        # Horizontal line
         tags$hr(),
         
-        # Input: Checkbox if file has header ----
+        # Input: Checkbox if file has header
         checkboxInput("header", "Header", TRUE),
         
-        # Input: Select separator ----
+        # Input: Select separator
         radioButtons("sep", "Separator",
                      choices = c(Comma = ",",
                                  Semicolon = ";",
                                  Tab = "\t"),
                      selected = ","),
         
-        # Input: Select quotes ----
+        # Input: Select quotes
         radioButtons("quote", "Quote",
                      choices = c(None = "",
                                  "Double Quote" = '"',
                                  "Single Quote" = "'"),
                      selected = '"'),
         
-        # Horizontal line ----
+        # Horizontal line
         tags$hr(),
         
-        # Input: Select number of rows to display ----
+        # Input: Select number of rows to display
         radioButtons("disp", "Display",
                      choices = c(Head = "head",
                                  All = "all"),
@@ -50,14 +47,31 @@ navbarPage(
         
       ),
       
-      # Main panel for displaying outputs ----
+      # Main panel for displaying outputs
       mainPanel(
         
-        # Output: Data file ----
+        # Output: Data file
         DT::dataTableOutput("contents")
         
       )
       
     )
-  )
+  ),
+  tabPanel("Data preprocessing",
+           sidebarLayout(
+             
+             sidebarPanel(
+               checkboxGroupInput(
+                 inputId = "column_choice",
+                 label = "Choose columns:",
+                 selected = "white",
+                 choices = c()
+               )
+             ),
+             mainPanel(
+               
+             )
+             
+           )
+           )
 )

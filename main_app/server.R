@@ -1,10 +1,8 @@
 library(ggplot2)
 
-# Define server logic to read selected file ----
-function(input, output) {
+function(input, output, session) {
   
-  output$contents <- DT::renderDataTable(DT::datatable({
-    
+  df <- reactive({
     # input$file1 will be NULL initially. After the user selects
     # and uploads a file, head of that data file by default,
     # or all rows if selected, will be shown.
@@ -25,14 +23,29 @@ function(input, output) {
         stop(safeError(e))
       }
     )
+  })
+  
+  output$contents <- DT::renderDataTable(DT::datatable({
+    
+    df()
     
     if(input$disp == "head") {
-      return(head(df))
+      return(head(df()))
     }
     else {
-      return(df)
+      return(df())
     }
     
   }), options = list(scrollX = TRUE))
+  
+  observe({
+    req(input$file1)
+    dfnames <- colnames(df())
+    updateCheckboxGroupInput(
+      session,
+      "column_choice",
+      choices = dfnames
+    )
+  })
   
 }
