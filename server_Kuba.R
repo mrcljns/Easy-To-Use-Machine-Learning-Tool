@@ -1,7 +1,12 @@
 library(ggplot2)
 library(caret)
+library('corrplot')
 
-function(input, output, session) {
+library(gridExtra)
+
+
+
+server<-function(input, output, session) {
   
   values <- reactiveValues(df = NULL)
   
@@ -75,42 +80,40 @@ function(input, output, session) {
     )
   })
   
-  # Generate histogram plots
-  output$histogram_plots <- renderPlot({
+  
+  output$plots <- renderPlot({
     req(input$generate_plots, input$variable_choice)
     var <- input$variable_choice
-    if (is.numeric(values$df[[var]]) || is.integer(values$df[[var]])) {
-      ggplot(values$df, aes_string(x = var)) +
-        geom_histogram(fill = "steelblue", color = "black") +
-        labs(title = paste("Histogram of", var),
-             x = var, y = "Count")
-    }
+    
+    plots <- lapply(var, function(var_name) {
+      if (is.numeric(values$df[[var_name]]) || is.integer(values$df[[var_name]])) {
+        # Histogram plot for numeric or integer variables
+        ggplot(values$df, aes_string(x = var_name)) +
+          geom_histogram(fill = "steelblue", color = "black") +
+          labs(title = paste("Histogram of", var_name),
+               x = var_name, y = "Count")
+      } else {
+        # Bar plot for factor
+        ggplot(values$df, aes_string(x = var_name)) +
+          geom_bar(fill = "green", color = "black") +
+          labs(title = paste("Bar Plot of", var_name),
+               x = var_name, y = "Count")
+      }
+    })
+    
+    grid.arrange(grobs = plots, ncol = 1)
   })
   
-  # Generate bar plots
-  output$barplot_plots <- renderPlot({
-    req(input$generate_plots, input$variable_choice)
-    var <- input$variable_choice
-    if (is.factor(values$df[[var]]) || is.logical(values$df[[var]])) {
-      ggplot(values$df, aes_string(x = var)) +
-        geom_bar(fill = "red", color = "black") +
-        labs(title = paste("Bar Plot of", var),
-             x = var, y = "Count")
-    }
-  })
   
   # Generate heatmap
   output$heatmap_plot <- renderPlot({
     req(input$generate_heatmap, input$variable_choice)
-    vars <- input$variable_choice
-    selected_df <- values$df[, vars, drop = FALSE]
-    correlation_matrix <- cor(selected_df, use = "complete.obs")
-    ggplot(data = melt(correlation_matrix), aes(x = Var1, y = Var2, fill = value)) +
-      geom_tile() +
-      scale_fill_gradient(low = "white", high = "steelblue") +
-      labs(title = "Correlation Heatmap",
-           x = "Variable 1", y = "Variable 2")
+    var <- input$variable_choice
+    #elected_df <- values$df[, vars, drop = FALSE]
+    corr_matrix <- cor(values$df[var])
+    corrplot(corr_matrix, method = "color", tl.col = "black", tl.srt = 0)
   })
   
 }
 
+shinyApp(ui = ui, server = server)
