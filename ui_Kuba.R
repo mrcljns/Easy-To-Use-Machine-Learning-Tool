@@ -1,4 +1,5 @@
 library(ggplot2)
+library(shiny)
 
 ui <- navbarPage(
   "EasyNet",
@@ -104,21 +105,13 @@ ui <- navbarPage(
                actionButton("generate_plots", "Generate Plots", icon = icon("bar-chart")),
                
                # Action button to generate heatmap
-               actionButton("generate_heatmap", "Generate Heatmap", icon = icon("heatmap"))
+               actionButton("generate_heatmap", "Generate Heatmap")
              ),
              mainPanel(
-               # Plots
                fluidRow(
-                 column(width = 6,
-                        id = "histogram_col",
-                        plotOutput("histogram_plots")
-                 ),
-                 column(width = 6,
-                        id = "barplot_col",
-                        plotOutput("barplot_plots")
-                 )
-               ),
+                  plotOutput("plots"),
                plotOutput("heatmap_plot")
+             )
              )
            )
   )
