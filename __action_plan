@@ -1,9 +1,9 @@
 Do zrobienia -
 
-1. Heatmap - do naprawienia
+1. Heatmap/plots - do naprawienia
 2. Zaznaczanie wielu zmiennych na raz
 3. Zmiana na factor
 3. 1. One hot encoding?
-4. Delete NA -> zamienić na average, itp
+4. alternatives for delete NA -> zamienić na average, itp
 5. Zmiana nazw kolumn / estetyczna zmiana
 6. Eksport edytowanego csv
