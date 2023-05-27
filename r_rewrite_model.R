@@ -8,18 +8,18 @@ NeuralNetwork <- R6Class("NeuralNetwork",
                            
                            z = NULL,
                            dz = NULL,
-                           W = NULL,
+                           .W = NULL,
                            dW = NULL,
-                           b = NULL,
+                           .b = NULL,
                            db = NULL,
                            a = NULL,
                            da = NULL,
-                           layers_hidden = NULL,
-                           neurons_hidden = NULL,
-                           problem_type = NULL,
+                           .layers_hidden = NULL,
+                           .neurons_hidden = NULL,
+                           .problem_type = NULL,
                            loss_func = NULL,
                            dloss_func = NULL,
-                           activ_type = NULL,
+                           .activ_type = NULL,
                            activ_func = NULL,
                            dactiv_func = NULL,
                            out_func = NULL,
@@ -29,38 +29,38 @@ NeuralNetwork <- R6Class("NeuralNetwork",
                            forward = function(x){
                              private$a[[1]] = scale(as.matrix(x))
                              
-                             for (l in 1:private$layers_hidden){
-                               private$z[[l]] = (private$a[[l]] %*% private$W[[l]] + rep(private$b[[l]], each=nrow(private$a[[l]])))
+                             for (l in 1:private$.layers_hidden){
+                               private$z[[l]] = (private$a[[l]] %*% private$.W[[l]] + rep(private$.b[[l]], each=nrow(private$a[[l]])))
                                private$a[[l+1]] = apply(private$z[[l]], 2, private$activ_func)
                              }
                              
-                             private$z[[private$layers_hidden + 1]] = (private$a[[private$layers_hidden + 1]] %*% private$W[[private$layers_hidden + 1]] +
-                                                                         rep(private$b[[private$layers_hidden + 1]], each = nrow(private$a[[private$layers_hidden + 1]])))
+                             private$z[[private$.layers_hidden + 1]] = (private$a[[private$.layers_hidden + 1]] %*% private$.W[[private$.layers_hidden + 1]] +
+                                                                         rep(private$.b[[private$.layers_hidden + 1]], each = nrow(private$a[[private$.layers_hidden + 1]])))
                              
-                             private$a[[private$layers_hidden + 2]] = private$out_func(private$z[[private$layers_hidden + 1]])
-                             return(private$a[[private$layers_hidden + 2]])
+                             private$a[[private$.layers_hidden + 2]] = private$out_func(private$z[[private$.layers_hidden + 1]])
+                             return(private$a[[private$.layers_hidden + 2]])
                            },
                            
                            backward = function(y, yhat){
                              
-                             private$da[[private$layers_hidden + 2]] = private$dloss_func(y, yhat)
-                             private$dz[[private$layers_hidden + 1]] = private$da[[private$layers_hidden + 2]] * private$dout_func(private$z[[private$layers_hidden + 1]])
-                             private$dW[[private$layers_hidden + 1]] = t(private$a[[private$layers_hidden + 1]]) %*% private$dz[[private$layers_hidden + 1]]
-                             private$db[[private$layers_hidden + 1]] = apply(private$dz[[private$layers_hidden + 1]], 2, mean)
-                             private$da[[private$layers_hidden + 1]] = private$dz[[private$layers_hidden + 1]] %*% t(private$W[[private$layers_hidden + 1]])
+                             private$da[[private$.layers_hidden + 2]] = private$dloss_func(y, yhat)
+                             private$dz[[private$.layers_hidden + 1]] = private$da[[private$.layers_hidden + 2]] * private$dout_func(private$z[[private$.layers_hidden + 1]])
+                             private$dW[[private$.layers_hidden + 1]] = t(private$a[[private$.layers_hidden + 1]]) %*% private$dz[[private$.layers_hidden + 1]]
+                             private$db[[private$.layers_hidden + 1]] = apply(private$dz[[private$.layers_hidden + 1]], 2, mean)
+                             private$da[[private$.layers_hidden + 1]] = private$dz[[private$.layers_hidden + 1]] %*% t(private$.W[[private$.layers_hidden + 1]])
                              
-                             for (l in (private$layers_hidden):1){
+                             for (l in (private$.layers_hidden):1){
                                private$dz[[l]] = private$da[[l+1]] * private$dactiv_func(private$z[[l]])
                                private$dW[[l]] = t(private$a[[l]]) %*% private$dz[[l]]
                                private$db[[l]] = apply(private$dz[[l]], 2, mean)
-                               private$da[[l]] = private$dz[[l]] %*% t(private$W[[l]])
+                               private$da[[l]] = private$dz[[l]] %*% t(private$.W[[l]])
                              }
                            },
                            
                            update = function(lr){
-                             for (l in 1:length(private$W)){
-                               private$W[[l]] = private$W[[l]] - lr * private$dW[[l]]
-                               private$b[[l]] = private$b[[l]] - lr * private$db[[l]]
+                             for (l in 1:length(private$.W)){
+                               private$.W[[l]] = private$.W[[l]] - lr * private$dW[[l]]
+                               private$.b[[l]] = private$.b[[l]] - lr * private$db[[l]]
                              }
                            },
                            
@@ -92,6 +92,24 @@ NeuralNetwork <- R6Class("NeuralNetwork",
                            }
                          ),
                          
+                         # some field are kept active
+                         # the user can view them, but not alter them
+                         active = list(
+                           
+                           W = function() private$.W,
+                           
+                           b = function() private$.b,
+                           
+                           problem_type = function() private$.problem_type,
+                           
+                           activ_type = function() private$.activ_type,
+                           
+                           layers_hidden = function() private$.layers_hidden,
+                           
+                           neurons_hidden = function() private$.neurons_hidden
+                         
+                         ),
+                         
                          public = list(
 
                            initialize = function(rand_state = 42,
@@ -111,16 +129,16 @@ NeuralNetwork <- R6Class("NeuralNetwork",
                              private$rand_state = as.integer(rand_state)
                              
                              # number of hidden layers
-                             private$layers_hidden = as.integer(layers_hidden)
+                             private$.layers_hidden = as.integer(layers_hidden)
                              
                              # number of neurons in hidden layers
                              # (for simplicity, the number of neurons is the same in each hidden layer)
-                             private$neurons_hidden = as.integer(neurons_hidden)
+                             private$.neurons_hidden = as.integer(neurons_hidden)
                              
                              # the problem type - either classification or regression
-                             private$problem_type = problem_type
+                             private$.problem_type = problem_type
                              
-                             private$activ_type = activ_type
+                             private$.activ_type = activ_type
                              
                              # initializing the activation function in hidden layers
                              if (activ_type == "sigmoid"){
@@ -176,14 +194,14 @@ NeuralNetwork <- R6Class("NeuralNetwork",
                              
                              # initialize empty lists for storing
                              # adding 1 to number of hidden layers to account for output layer
-                             private$z = vector(mode='list', length=private$layers_hidden + 1)
-                             private$W = vector(mode='list', length=private$layers_hidden + 1)
-                             private$b = vector(mode='list', length=private$layers_hidden + 1)
-                             private$a = vector(mode='list', length=private$layers_hidden + 2)
-                             private$dz = vector(mode='list', length=private$layers_hidden + 1)
-                             private$dW = vector(mode='list', length=private$layers_hidden + 1)
-                             private$db = vector(mode='list', length=private$layers_hidden + 1)
-                             private$da = vector(mode='list', length=private$layers_hidden + 2)
+                             private$z = vector(mode='list', length=private$.layers_hidden + 1)
+                             private$.W = vector(mode='list', length=private$.layers_hidden + 1)
+                             private$.b = vector(mode='list', length=private$.layers_hidden + 1)
+                             private$a = vector(mode='list', length=private$.layers_hidden + 2)
+                             private$dz = vector(mode='list', length=private$.layers_hidden + 1)
+                             private$dW = vector(mode='list', length=private$.layers_hidden + 1)
+                             private$db = vector(mode='list', length=private$.layers_hidden + 1)
+                             private$da = vector(mode='list', length=private$.layers_hidden + 2)
                            },
                            
                            init_network = function(input_neurons){
@@ -193,83 +211,83 @@ NeuralNetwork <- R6Class("NeuralNetwork",
                              stopifnot(is.numeric(input_neurons))
                              
                              # initial weights and bias
-                             if (private$activ_type == "sigmoid" | private$activ_type == "tanh"){
+                             if (private$.activ_type == "sigmoid" | private$.activ_type == "tanh"){
                                
                                # for sigmoid and tanh, "glorot" weight initialization is used
                                
                                # first layer
-                               private$W[[1]] <- matrix(runif(input_neurons * private$neurons_hidden,
+                               private$.W[[1]] <- matrix(runif(input_neurons * private$.neurons_hidden,
                                                            min=-(1/sqrt(input_neurons)),
                                                            max=(1/sqrt(input_neurons))),
                                                      input_neurons,
-                                                     private$neurons_hidden)
+                                                     private$.neurons_hidden)
                                
-                               private$b[[1]] <- runif(private$neurons_hidden,
+                               private$.b[[1]] <- runif(private$.neurons_hidden,
                                                     min=-(1/sqrt(input_neurons)),
                                                     max=(1/sqrt(input_neurons)))
                                
-                               if (private$layers_hidden > 1){
-                                 for(l in 1:(private$layers_hidden-1)){
+                               if (private$.layers_hidden > 1){
+                                 for(l in 1:(private$.layers_hidden-1)){
                                    
-                                   private$W[[l + 1]] <- matrix(runif(private$neurons_hidden * private$neurons_hidden,
-                                                                   min=-(1/sqrt(private$neurons_hidden)),
-                                                                   max=(1/sqrt(private$neurons_hidden))),
-                                                             private$neurons_hidden,
-                                                             private$neurons_hidden)
+                                   private$.W[[l + 1]] <- matrix(runif(private$.neurons_hidden * private$.neurons_hidden,
+                                                                   min=-(1/sqrt(private$.neurons_hidden)),
+                                                                   max=(1/sqrt(private$.neurons_hidden))),
+                                                             private$.neurons_hidden,
+                                                             private$.neurons_hidden)
                                    
-                                   private$b[[l + 1]] <- runif(private$neurons_hidden,
-                                                            min=-(1/sqrt(private$neurons_hidden)),
-                                                            max=(1/sqrt(private$neurons_hidden)))
+                                   private$.b[[l + 1]] <- runif(private$.neurons_hidden,
+                                                            min=-(1/sqrt(private$.neurons_hidden)),
+                                                            max=(1/sqrt(private$.neurons_hidden)))
                                  }
                                }
                                
                                # last layer
-                               private$W[[private$layers_hidden + 1]] <- matrix(runif(private$neurons_hidden * 1,
-                                                           min=-(1/sqrt(private$neurons_hidden)),
-                                                           max=(1/sqrt(private$neurons_hidden))),
-                                                     private$neurons_hidden,
+                               private$.W[[private$.layers_hidden + 1]] <- matrix(runif(private$.neurons_hidden * 1,
+                                                           min=-(1/sqrt(private$.neurons_hidden)),
+                                                           max=(1/sqrt(private$.neurons_hidden))),
+                                                     private$.neurons_hidden,
                                                      1)
                                
-                               private$b[[private$layers_hidden + 1]] <- runif(1,
-                                                    min=-(1/sqrt(private$neurons_hidden)),
-                                                    max=(1/sqrt(private$neurons_hidden)))
+                               private$.b[[private$.layers_hidden + 1]] <- runif(1,
+                                                    min=-(1/sqrt(private$.neurons_hidden)),
+                                                    max=(1/sqrt(private$.neurons_hidden)))
                              }
                              else {
                                
                                # for relu activation, "he" weight activation is used
-                               private$W[[1]] <- matrix(rnorm(input_neurons * private$neurons_hidden,
+                               private$.W[[1]] <- matrix(rnorm(input_neurons * private$.neurons_hidden,
                                                            mean=0,
                                                            sd=(2/sqrt(input_neurons))),
                                                      input_neurons,
-                                                     private$neurons_hidden)
+                                                     private$.neurons_hidden)
                                
-                               private$b[[1]] <- rnorm(private$neurons_hidden,
+                               private$.b[[1]] <- rnorm(private$.neurons_hidden,
                                                     mean=0,
                                                     sd=(2/sqrt(input_neurons)))
                                
-                               if (private$layers_hidden > 1){
-                                 for(l in 1:(private$layers_hidden-1)){
-                                   private$W[[l+1]] <- matrix(rnorm(private$neurons_hidden * private$neurons_hidden,
+                               if (private$.layers_hidden > 1){
+                                 for(l in 1:(private$.layers_hidden-1)){
+                                   private$.W[[l+1]] <- matrix(rnorm(private$.neurons_hidden * private$.neurons_hidden,
                                                                mean=0,
-                                                               sd=(2/sqrt(private$neurons_hidden))),
-                                                         private$neurons_hidden,
-                                                         private$neurons_hidden)
+                                                               sd=(2/sqrt(private$.neurons_hidden))),
+                                                         private$.neurons_hidden,
+                                                         private$.neurons_hidden)
                                    
-                                   private$b[[l+1]] <- rnorm(private$neurons_hidden,
+                                   private$.b[[l+1]] <- rnorm(private$.neurons_hidden,
                                                         mean=0,
-                                                        sd=(2/sqrt(private$neurons_hidden)))
+                                                        sd=(2/sqrt(private$.neurons_hidden)))
                                  }
                                }
                                
-                               private$W[[private$layers_hidden + 1]] <- matrix(rnorm(private$neurons_hidden * 1,
+                               private$.W[[private$.layers_hidden + 1]] <- matrix(rnorm(private$.neurons_hidden * 1,
                                                            mean=0,
-                                                           sd=(2/sqrt(private$neurons_hidden))),
-                                                           private$neurons_hidden,
+                                                           sd=(2/sqrt(private$.neurons_hidden))),
+                                                           private$.neurons_hidden,
                                                      1)
                                
-                               private$b[[private$layers_hidden + 1]] <- rnorm(1,
+                               private$.b[[private$.layers_hidden + 1]] <- rnorm(1,
                                                     mean=0,
-                                                    sd=(2/sqrt(private$neurons_hidden)))
+                                                    sd=(2/sqrt(private$.neurons_hidden)))
                              }
                              
                            },
@@ -280,7 +298,7 @@ NeuralNetwork <- R6Class("NeuralNetwork",
                              
                              stopifnot(is.data.frame(X) | is.matrix(X))
                              
-                             if(private$problem_type == "classification"){
+                             if(private$.problem_type == "classification"){
                                stopifnot(is.integer(y) | is.numeric(y), length(unique(y)) == 2)
                              }
                              else {
@@ -310,7 +328,7 @@ NeuralNetwork <- R6Class("NeuralNetwork",
                              stopifnot(is.numeric(threshold), threshold>=0.0 & threshold<=1.0)
                              
                              preds = private$forward(X)
-                             if(private$problem_type == "classification"){
+                             if(private$.problem_type == "classification"){
                                preds <- ifelse(preds>=threshold, 1, 0)
                              }
                              return(preds)
