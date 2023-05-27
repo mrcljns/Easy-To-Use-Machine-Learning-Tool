@@ -87,11 +87,11 @@ NeuralNetwork <- R6Class("NeuralNetwork",
                                
                                # MSE
                                self$loss_func = function(y, yhat){
-                                 -(y-yhat)**2 / length(y)
+                                 (yhat-y)**2 / length(y)
                                }
                                
                                self$dloss_func = function(y, yhat){
-                                 -2*(yhat-y)
+                                 2*(yhat-y)
                                }
                              }
                              
@@ -273,7 +273,9 @@ NeuralNetwork <- R6Class("NeuralNetwork",
                            
                            predict = function(x, threshold = 0.5){
                              preds = self$forward(x)
-                             preds <- ifelse(preds>=threshold, 1, 0)
+                             if(self$problem_type == "classification"){
+                               preds <- ifelse(preds>=threshold, 1, 0)
+                             }
                              return(preds)
                            }
                          ))
