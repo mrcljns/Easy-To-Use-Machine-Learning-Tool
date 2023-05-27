@@ -3,7 +3,9 @@ library(R6)
 # Code inspired by https://machinelearningmastery.com/application-of-differentiations-in-neural-networks/
 
 NeuralNetwork <- R6Class("NeuralNetwork",
-                         public = list(
+                         
+                         private = list(
+                           
                            z = NULL,
                            dz = NULL,
                            W = NULL,
@@ -23,210 +25,42 @@ NeuralNetwork <- R6Class("NeuralNetwork",
                            out_func = NULL,
                            dout_func = NULL,
                            rand_state = NULL,
-                           initialize = function(rand_state = 42,
-                                                 layers_hidden,
-                                                 neurons_hidden,
-                                                 problem_type = "classification",
-                                                 activ_type = "sigmoid"){
-                             # the random state specified by the user
-                             self$rand_state = rand_state
-                             
-                             # number of hidden layers
-                             self$layers_hidden = layers_hidden
-                             
-                             # number of neurons in hidden layers
-                             # (for simplicity, the number of neurons is the same in each hidden layer)
-                             self$neurons_hidden = neurons_hidden
-                             
-                             # the problem type - either classification or regression
-                             self$problem_type = problem_type
-                             
-                             self$activ_type = activ_type
-                             
-                             # initializing the activation function in hidden layers
-                             if (activ_type == "sigmoid"){
-                               self$activ_func = function(z) 1/(1+exp(-pmin(pmax(z, -500), 500)))
-                               
-                               self$dactiv_func = function(z) {
-                                 s = self$activ_func(z)
-                                 2 * s * (1 - s)
-                               }
-                             }
-                             else if (activ_type == "tanh"){
-                               self$activ_func = function(z) tanh(z)
-                               self$dactiv_func = function(z) 1 - tanh(z)**2
-                             }
-                             # in other case it's relu
-                             else {
-                               self$activ_func = function(z) pmax(z, 0)
-                               self$dactiv_func = function(z) as.numeric(z>0)
-                             }
-                             
-                             # initializing output and loss function based on problem type
-                             if (problem_type == "classification"){
-                               
-                               # sigmoid as output
-                               self$out_func = function(z) 1/(1+exp(-pmin(pmax(z, -500), 500)))
-                               self$dout_func = function(z){
-                                 s = self$out_func(z)
-                                 2 * s * (1-s)
-                               }
-                               
-                               # binary cross entropy
-                               self$loss_func = function(y, yhat){
-                                 -(t(y) %*% log(pmax(yhat, .Machine$double.eps)) + (1-t(y)) %*% log(pmax((1-yhat), .Machine$double.eps))) / length(y)
-                               }
-                               
-                               self$dloss_func = function(y, yhat){
-                                 -y/pmax(yhat, .Machine$double.eps) + (1-y)/pmax((1-yhat), .Machine$double.eps)
-                               }
-                             }
-                             else {
-                               self$out_func = function(z) z
-                               self$dout_func = function(z) 1
-                               
-                               # MSE
-                               self$loss_func = function(y, yhat){
-                                 (yhat-y)**2 / length(y)
-                               }
-                               
-                               self$dloss_func = function(y, yhat){
-                                 2*(yhat-y)
-                               }
-                             }
-                             
-                             # initialize empty lists for storing
-                             # adding 1 to number of hidden layers to account for output layer
-                             self$z = vector(mode='list', length=self$layers_hidden + 1)
-                             self$W = vector(mode='list', length=self$layers_hidden + 1)
-                             self$b = vector(mode='list', length=self$layers_hidden + 1)
-                             self$a = vector(mode='list', length=self$layers_hidden + 2)
-                             self$dz = vector(mode='list', length=self$layers_hidden + 1)
-                             self$dW = vector(mode='list', length=self$layers_hidden + 1)
-                             self$db = vector(mode='list', length=self$layers_hidden + 1)
-                             self$da = vector(mode='list', length=self$layers_hidden + 2)
-                           },
-                           
-                           init_network = function(input_neurons){
-                             set.seed(self$rand_state)
-                             
-                             # initial weights and bias
-                             if (self$activ_type == "sigmoid" | self$activ_type == "tanh"){
-                               
-                               # for sigmoid and tanh, "glorot" weight initialization is used
-                               
-                               # first layer
-                               self$W[[1]] <- matrix(runif(input_neurons * self$neurons_hidden,
-                                                           min=-(1/sqrt(input_neurons)),
-                                                           max=(1/sqrt(input_neurons))),
-                                                     input_neurons,
-                                                     self$neurons_hidden)
-                               
-                               self$b[[1]] <- runif(self$neurons_hidden,
-                                                    min=-(1/sqrt(input_neurons)),
-                                                    max=(1/sqrt(input_neurons)))
-                               
-                               if (self$layers_hidden > 1){
-                                 for(l in 1:(self$layers_hidden-1)){
-                                   
-                                   self$W[[l + 1]] <- matrix(runif(self$neurons_hidden * self$neurons_hidden,
-                                                                   min=-(1/sqrt(self$neurons_hidden)),
-                                                                   max=(1/sqrt(self$neurons_hidden))),
-                                                             self$neurons_hidden,
-                                                             self$neurons_hidden)
-                                   
-                                   self$b[[l + 1]] <- runif(self$neurons_hidden,
-                                                            min=-(1/sqrt(self$neurons_hidden)),
-                                                            max=(1/sqrt(self$neurons_hidden)))
-                                 }
-                               }
-                               
-                               # last layer
-                               self$W[[self$layers_hidden + 1]] <- matrix(runif(self$neurons_hidden * 1,
-                                                           min=-(1/sqrt(self$neurons_hidden)),
-                                                           max=(1/sqrt(self$neurons_hidden))),
-                                                     self$neurons_hidden,
-                                                     1)
-                               
-                               self$b[[self$layers_hidden + 1]] <- runif(1,
-                                                    min=-(1/sqrt(self$neurons_hidden)),
-                                                    max=(1/sqrt(self$neurons_hidden)))
-                             }
-                             else {
-                               
-                               # for relu activation, "he" weight activation is used
-                               self$W[[1]] <- matrix(rnorm(input_neurons * self$neurons_hidden,
-                                                           mean=0,
-                                                           sd=(2/sqrt(input_neurons))),
-                                                     input_neurons,
-                                                     self$neurons_hidden)
-                               
-                               self$b[[1]] <- rnorm(self$neurons_hidden,
-                                                    mean=0,
-                                                    sd=(2/sqrt(input_neurons)))
-                               
-                               if (self$layers_hidden > 1){
-                                 for(l in 1:(self$layers_hidden-1)){
-                                   self$W[[l+1]] <- matrix(rnorm(self$neurons_hidden * self$neurons_hidden,
-                                                               mean=0,
-                                                               sd=(2/sqrt(self$neurons_hidden))),
-                                                         self$neurons_hidden,
-                                                         self$neurons_hidden)
-                                   
-                                   self$b[[l+1]] <- rnorm(self$neurons_hidden,
-                                                        mean=0,
-                                                        sd=(2/sqrt(self$neurons_hidden)))
-                                 }
-                               }
-                               
-                               self$W[[self$layers_hidden + 1]] <- matrix(rnorm(self$neurons_hidden * 1,
-                                                           mean=0,
-                                                           sd=(2/sqrt(self$neurons_hidden))),
-                                                           self$neurons_hidden,
-                                                     1)
-                               
-                               self$b[[self$layers_hidden + 1]] <- rnorm(1,
-                                                    mean=0,
-                                                    sd=(2/sqrt(self$neurons_hidden)))
-                             }
-                             
-                           },
                            
                            forward = function(x){
-                             self$a[[1]] = scale(as.matrix(x))
+                             private$a[[1]] = scale(as.matrix(x))
                              
-                             for (l in 1:self$layers_hidden){
-                               self$z[[l]] = (self$a[[l]] %*% self$W[[l]] + rep(self$b[[l]], each=nrow(self$a[[l]])))
-                               self$a[[l+1]] = apply(self$z[[l]], 2, self$activ_func)
+                             for (l in 1:private$layers_hidden){
+                               private$z[[l]] = (private$a[[l]] %*% private$W[[l]] + rep(private$b[[l]], each=nrow(private$a[[l]])))
+                               private$a[[l+1]] = apply(private$z[[l]], 2, private$activ_func)
                              }
                              
-                             self$z[[self$layers_hidden + 1]] = (self$a[[self$layers_hidden + 1]] %*% self$W[[self$layers_hidden + 1]] +
-                                                                   rep(self$b[[self$layers_hidden + 1]], each = nrow(self$a[[self$layers_hidden + 1]])))
+                             private$z[[private$layers_hidden + 1]] = (private$a[[private$layers_hidden + 1]] %*% private$W[[private$layers_hidden + 1]] +
+                                                                         rep(private$b[[private$layers_hidden + 1]], each = nrow(private$a[[private$layers_hidden + 1]])))
                              
-                             self$a[[self$layers_hidden + 2]] = self$out_func(self$z[[self$layers_hidden + 1]])
-                             return(self$a[[self$layers_hidden + 2]])
+                             private$a[[private$layers_hidden + 2]] = private$out_func(private$z[[private$layers_hidden + 1]])
+                             return(private$a[[private$layers_hidden + 2]])
                            },
-
+                           
                            backward = function(y, yhat){
                              
-                             self$da[[self$layers_hidden + 2]] = self$dloss_func(y, yhat)
-                             self$dz[[self$layers_hidden + 1]] = self$da[[self$layers_hidden + 2]] * self$dout_func(self$z[[self$layers_hidden + 1]])
-                             self$dW[[self$layers_hidden + 1]] = t(self$a[[self$layers_hidden + 1]]) %*% self$dz[[self$layers_hidden + 1]]
-                             self$db[[self$layers_hidden + 1]] = apply(self$dz[[self$layers_hidden + 1]], 2, mean)
-                             self$da[[self$layers_hidden + 1]] = self$dz[[self$layers_hidden + 1]] %*% t(self$W[[self$layers_hidden + 1]])
+                             private$da[[private$layers_hidden + 2]] = private$dloss_func(y, yhat)
+                             private$dz[[private$layers_hidden + 1]] = private$da[[private$layers_hidden + 2]] * private$dout_func(private$z[[private$layers_hidden + 1]])
+                             private$dW[[private$layers_hidden + 1]] = t(private$a[[private$layers_hidden + 1]]) %*% private$dz[[private$layers_hidden + 1]]
+                             private$db[[private$layers_hidden + 1]] = apply(private$dz[[private$layers_hidden + 1]], 2, mean)
+                             private$da[[private$layers_hidden + 1]] = private$dz[[private$layers_hidden + 1]] %*% t(private$W[[private$layers_hidden + 1]])
                              
-                             for (l in (self$layers_hidden):1){
-                               self$dz[[l]] = self$da[[l+1]] * self$dactiv_func(self$z[[l]])
-                               self$dW[[l]] = t(self$a[[l]]) %*% self$dz[[l]]
-                               self$db[[l]] = apply(self$dz[[l]], 2, mean)
-                               self$da[[l]] = self$dz[[l]] %*% t(self$W[[l]])
+                             for (l in (private$layers_hidden):1){
+                               private$dz[[l]] = private$da[[l+1]] * private$dactiv_func(private$z[[l]])
+                               private$dW[[l]] = t(private$a[[l]]) %*% private$dz[[l]]
+                               private$db[[l]] = apply(private$dz[[l]], 2, mean)
+                               private$da[[l]] = private$dz[[l]] %*% t(private$W[[l]])
                              }
                            },
                            
                            update = function(lr){
-                             for (l in 1:length(self$W)){
-                               self$W[[l]] = self$W[[l]] - lr * self$dW[[l]]
-                               self$b[[l]] = self$b[[l]] - lr * self$db[[l]]
+                             for (l in 1:length(private$W)){
+                               private$W[[l]] = private$W[[l]] - lr * private$dW[[l]]
+                               private$b[[l]] = private$b[[l]] - lr * private$db[[l]]
                              }
                            },
                            
@@ -255,25 +89,228 @@ NeuralNetwork <- R6Class("NeuralNetwork",
                              }
                              
                              return(mini_batches)
+                           }
+                         ),
+                         
+                         public = list(
+
+                           initialize = function(rand_state = 42,
+                                                 layers_hidden,
+                                                 neurons_hidden,
+                                                 problem_type = "classification",
+                                                 activ_type = "sigmoid"){
+                             
+                             # defensive programming
+                             stopifnot(is.numeric(rand_state))
+                             stopifnot(is.numeric(layers_hidden), layers_hidden>0 & layers_hidden<4)
+                             stopifnot(is.numeric(neurons_hidden), layers_hidden>0 & layers_hidden<21)
+                             stopifnot(is.character(problem_type), problem_type %in% c("classification", "regression"))
+                             stopifnot(is.character(activ_type), activ_type %in% c("sigmoid", "tanh", "relu"))
+                             
+                             # the random state specified by the user
+                             private$rand_state = as.integer(rand_state)
+                             
+                             # number of hidden layers
+                             private$layers_hidden = as.integer(layers_hidden)
+                             
+                             # number of neurons in hidden layers
+                             # (for simplicity, the number of neurons is the same in each hidden layer)
+                             private$neurons_hidden = as.integer(neurons_hidden)
+                             
+                             # the problem type - either classification or regression
+                             private$problem_type = problem_type
+                             
+                             private$activ_type = activ_type
+                             
+                             # initializing the activation function in hidden layers
+                             if (activ_type == "sigmoid"){
+                               private$activ_func = function(z) 1/(1+exp(-pmin(pmax(z, -500), 500)))
+                               
+                               private$dactiv_func = function(z) {
+                                 s = private$activ_func(z)
+                                 2 * s * (1 - s)
+                               }
+                             }
+                             else if (activ_type == "tanh"){
+                               private$activ_func = function(z) tanh(z)
+                               private$dactiv_func = function(z) 1 - tanh(z)**2
+                             }
+                             # in other case it's relu
+                             else {
+                               private$activ_func = function(z) pmax(z, 0)
+                               private$dactiv_func = function(z) as.numeric(z>0)
+                             }
+                             
+                             # initializing output and loss function based on problem type
+                             if (problem_type == "classification"){
+                               
+                               # sigmoid as output
+                               private$out_func = function(z) 1/(1+exp(-pmin(pmax(z, -500), 500)))
+                               private$dout_func = function(z){
+                                 s = private$out_func(z)
+                                 2 * s * (1-s)
+                               }
+                               
+                               # binary cross entropy
+                               private$loss_func = function(y, yhat){
+                                 -(t(y) %*% log(pmax(yhat, .Machine$double.eps)) + (1-t(y)) %*% log(pmax((1-yhat), .Machine$double.eps))) / length(y)
+                               }
+                               
+                               private$dloss_func = function(y, yhat){
+                                 -y/pmax(yhat, .Machine$double.eps) + (1-y)/pmax((1-yhat), .Machine$double.eps)
+                               }
+                             }
+                             else {
+                               private$out_func = function(z) z
+                               private$dout_func = function(z) 1
+                               
+                               # MSE
+                               private$loss_func = function(y, yhat){
+                                 (yhat-y)**2 / length(y)
+                               }
+                               
+                               private$dloss_func = function(y, yhat){
+                                 2*(yhat-y)
+                               }
+                             }
+                             
+                             # initialize empty lists for storing
+                             # adding 1 to number of hidden layers to account for output layer
+                             private$z = vector(mode='list', length=private$layers_hidden + 1)
+                             private$W = vector(mode='list', length=private$layers_hidden + 1)
+                             private$b = vector(mode='list', length=private$layers_hidden + 1)
+                             private$a = vector(mode='list', length=private$layers_hidden + 2)
+                             private$dz = vector(mode='list', length=private$layers_hidden + 1)
+                             private$dW = vector(mode='list', length=private$layers_hidden + 1)
+                             private$db = vector(mode='list', length=private$layers_hidden + 1)
+                             private$da = vector(mode='list', length=private$layers_hidden + 2)
+                           },
+                           
+                           init_network = function(input_neurons){
+                             
+                             set.seed(private$rand_state)
+                             
+                             stopifnot(is.numeric(input_neurons))
+                             
+                             # initial weights and bias
+                             if (private$activ_type == "sigmoid" | private$activ_type == "tanh"){
+                               
+                               # for sigmoid and tanh, "glorot" weight initialization is used
+                               
+                               # first layer
+                               private$W[[1]] <- matrix(runif(input_neurons * private$neurons_hidden,
+                                                           min=-(1/sqrt(input_neurons)),
+                                                           max=(1/sqrt(input_neurons))),
+                                                     input_neurons,
+                                                     private$neurons_hidden)
+                               
+                               private$b[[1]] <- runif(private$neurons_hidden,
+                                                    min=-(1/sqrt(input_neurons)),
+                                                    max=(1/sqrt(input_neurons)))
+                               
+                               if (private$layers_hidden > 1){
+                                 for(l in 1:(private$layers_hidden-1)){
+                                   
+                                   private$W[[l + 1]] <- matrix(runif(private$neurons_hidden * private$neurons_hidden,
+                                                                   min=-(1/sqrt(private$neurons_hidden)),
+                                                                   max=(1/sqrt(private$neurons_hidden))),
+                                                             private$neurons_hidden,
+                                                             private$neurons_hidden)
+                                   
+                                   private$b[[l + 1]] <- runif(private$neurons_hidden,
+                                                            min=-(1/sqrt(private$neurons_hidden)),
+                                                            max=(1/sqrt(private$neurons_hidden)))
+                                 }
+                               }
+                               
+                               # last layer
+                               private$W[[private$layers_hidden + 1]] <- matrix(runif(private$neurons_hidden * 1,
+                                                           min=-(1/sqrt(private$neurons_hidden)),
+                                                           max=(1/sqrt(private$neurons_hidden))),
+                                                     private$neurons_hidden,
+                                                     1)
+                               
+                               private$b[[private$layers_hidden + 1]] <- runif(1,
+                                                    min=-(1/sqrt(private$neurons_hidden)),
+                                                    max=(1/sqrt(private$neurons_hidden)))
+                             }
+                             else {
+                               
+                               # for relu activation, "he" weight activation is used
+                               private$W[[1]] <- matrix(rnorm(input_neurons * private$neurons_hidden,
+                                                           mean=0,
+                                                           sd=(2/sqrt(input_neurons))),
+                                                     input_neurons,
+                                                     private$neurons_hidden)
+                               
+                               private$b[[1]] <- rnorm(private$neurons_hidden,
+                                                    mean=0,
+                                                    sd=(2/sqrt(input_neurons)))
+                               
+                               if (private$layers_hidden > 1){
+                                 for(l in 1:(private$layers_hidden-1)){
+                                   private$W[[l+1]] <- matrix(rnorm(private$neurons_hidden * private$neurons_hidden,
+                                                               mean=0,
+                                                               sd=(2/sqrt(private$neurons_hidden))),
+                                                         private$neurons_hidden,
+                                                         private$neurons_hidden)
+                                   
+                                   private$b[[l+1]] <- rnorm(private$neurons_hidden,
+                                                        mean=0,
+                                                        sd=(2/sqrt(private$neurons_hidden)))
+                                 }
+                               }
+                               
+                               private$W[[private$layers_hidden + 1]] <- matrix(rnorm(private$neurons_hidden * 1,
+                                                           mean=0,
+                                                           sd=(2/sqrt(private$neurons_hidden))),
+                                                           private$neurons_hidden,
+                                                     1)
+                               
+                               private$b[[private$layers_hidden + 1]] <- rnorm(1,
+                                                    mean=0,
+                                                    sd=(2/sqrt(private$neurons_hidden)))
+                             }
+                             
                            },
                            
                            train = function(X, y, epochs, lr, batch_size){
-                             batches = self$create_mini_batches(X, y, batch_size)
+                             
+                             set.seed(private$rand_state)
+                             
+                             stopifnot(is.data.frame(X) | is.matrix(X))
+                             
+                             if(private$problem_type == "classification"){
+                               stopifnot(is.integer(y) | is.numeric(y), length(unique(y)) == 2)
+                             }
+                             else {
+                               stopifnot(is.numeric(y))
+                             }
+                             
+                             stopifnot(is.numeric(epochs), epochs <= 10000)
+                             stopifnot(is.numeric(lr))
+                             stopifnot(is.numeric(batch_size), batch_size <= dim(X)[1])
+                             
+                             batches = private$create_mini_batches(X, y, as.integer(batch_size))
                              for (epo in 1:epochs){
                                loss = NULL
                                for (batch in batches){
-                                 yhat = self$forward(batch[[1]])
-                                 self$backward(batch[[2]], yhat)
-                                 self$update(lr)
-                                 loss = c(loss, self$loss_func(batch[[2]], yhat))
+                                 yhat = private$forward(batch[[1]])
+                                 private$backward(batch[[2]], yhat)
+                                 private$update(lr)
+                                 loss = c(loss, private$loss_func(batch[[2]], yhat))
                                }
                                print(paste("[>] epoch=", epo, ", learning_rate=", lr, ", loss=", mean(loss), sep = ""))
                              }
                            },
                            
-                           predict = function(x, threshold = 0.5){
-                             preds = self$forward(x)
-                             if(self$problem_type == "classification"){
+                           predict = function(X, threshold = 0.5){
+                             
+                             stopifnot(is.data.frame(X) | is.matrix(X))
+                             stopifnot(is.numeric(threshold), threshold>=0.0 & threshold<=1.0)
+                             
+                             preds = private$forward(X)
+                             if(private$problem_type == "classification"){
                                preds <- ifelse(preds>=threshold, 1, 0)
                              }
                              return(preds)
