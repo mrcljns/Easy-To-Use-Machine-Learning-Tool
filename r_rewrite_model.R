@@ -67,7 +67,7 @@ NeuralNetwork <- R6Class("NeuralNetwork",
                            },
                            
                            create_mini_batches = function(X, y, batch_size) {
-                             create_mini_batches_cpp(X, y, batch_size)
+                             create_mini_batches_cpp(as.matrix(X), y, batch_size)
                              # mini_batches <- list()
                              # data <- cbind(X, y)
                              # data <- data[sample(nrow(data)), ]
@@ -301,6 +301,10 @@ NeuralNetwork <- R6Class("NeuralNetwork",
                              
                              stopifnot(is.data.frame(X) | is.matrix(X))
                              
+                             if(any(is.na(X)) || any(is.na(y))){
+                               stop("Error: There are missing values in your data!")
+                             }
+                             
                              if(private$.problem_type == "classification"){
                                stopifnot(is.integer(y) | is.numeric(y), length(unique(y)) == 2)
                              }
@@ -313,6 +317,9 @@ NeuralNetwork <- R6Class("NeuralNetwork",
                              stopifnot(is.numeric(batch_size), batch_size <= dim(X)[1])
                              
                              batches = private$create_mini_batches(X, y, as.integer(batch_size))
+                             
+                             prev_mean = 0
+                             
                              for (epo in 1:epochs){
                                loss = NULL
                                for (batch in batches){
@@ -321,13 +328,20 @@ NeuralNetwork <- R6Class("NeuralNetwork",
                                  private$update(lr)
                                  loss = c(loss, private$loss_func(batch[[2]], yhat))
                                }
+
                                print(paste("[>] epoch=", epo, ", learning_rate=", lr, ", loss=", mean(loss), sep = ""))
+
                              }
                            },
                            
                            predict = function(X, threshold = 0.5){
                              
                              stopifnot(is.data.frame(X) | is.matrix(X))
+                             
+                             if(any(is.na(X))){
+                               stop("Error: There are missing values in your data!")
+                             }
+                             
                              stopifnot(is.numeric(threshold), threshold>=0.0 & threshold<=1.0)
                              
                              preds = private$forward(X)
