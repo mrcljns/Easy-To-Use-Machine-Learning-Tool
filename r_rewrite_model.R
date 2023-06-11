@@ -5,31 +5,46 @@ sourceCpp('create_mini_batches.cpp')
 # Code inspired by https://machinelearningmastery.com/application-of-differentiations-in-neural-networks/
 
 NeuralNetwork <- R6Class("NeuralNetwork",
-                         
+                         # Keeping the matrices used by the network private
+                         # The weights are left as active fields - it is possible to view them, but not alter them
                          private = list(
-                           
+                           # Output of layer
                            z = NULL,
                            dz = NULL,
+                           # Weights
                            .W = NULL,
                            dW = NULL,
+                           # Intercepts
                            .b = NULL,
                            db = NULL,
+                           # Output after applying the activation function
                            a = NULL,
                            da = NULL,
+                           # Number of hidden layers
                            .layers_hidden = NULL,
+                           # Number of neurons in a hidden layer
+                           # For simplicity each hidden layer has the same number of neurons
                            .neurons_hidden = NULL,
+                           # User defined problem_type - either classification or regression
                            .problem_type = NULL,
+                           # Loss function depends on problem_type
                            loss_func = NULL,
                            dloss_func = NULL,
+                           # Type of activation function applied
                            .activ_type = NULL,
                            activ_func = NULL,
                            dactiv_func = NULL,
+                           # Output function depends on problem type - either sigmoid or linear
                            out_func = NULL,
                            dout_func = NULL,
+                           # Random state
                            rand_state = NULL,
                            
+                           # Forward propagate the data through the network
                            forward = function(x){
-                             private$a[[1]] = scale(as.matrix(x))
+                             #private$a[[1]] = scale(as.matrix(x))
+                             private$a[[1]] = as.matrix(x)
+                             
                              
                              for (l in 1:private$.layers_hidden){
                                private$z[[l]] = (private$a[[l]] %*% private$.W[[l]] + rep(private$.b[[l]], each=nrow(private$a[[l]])))
@@ -44,7 +59,7 @@ NeuralNetwork <- R6Class("NeuralNetwork",
                            },
                            
                            backward = function(y, yhat){
-                             
+
                              private$da[[private$.layers_hidden + 2]] = private$dloss_func(y, yhat)
                              private$dz[[private$.layers_hidden + 1]] = private$da[[private$.layers_hidden + 2]] * private$dout_func(private$z[[private$.layers_hidden + 1]])
                              private$dW[[private$.layers_hidden + 1]] = t(private$a[[private$.layers_hidden + 1]]) %*% private$dz[[private$.layers_hidden + 1]]
@@ -60,6 +75,7 @@ NeuralNetwork <- R6Class("NeuralNetwork",
                            },
                            
                            update = function(lr){
+                             # Updating the weights for each weight matrix
                              for (l in 1:length(private$.W)){
                                private$.W[[l]] = private$.W[[l]] - lr * private$dW[[l]]
                                private$.b[[l]] = private$.b[[l]] - lr * private$db[[l]]
@@ -95,8 +111,8 @@ NeuralNetwork <- R6Class("NeuralNetwork",
                            }
                          ),
                          
-                         # some field are kept active
-                         # the user can view them, but not alter them
+                         # Some field are kept active
+                         # The user can view them, but not alter them
                          active = list(
                            
                            W = function() private$.W,
@@ -116,34 +132,34 @@ NeuralNetwork <- R6Class("NeuralNetwork",
                          public = list(
 
                            initialize = function(rand_state = 42,
-                                                 layers_hidden,
-                                                 neurons_hidden,
+                                                 layers_hidden = 2,
+                                                 neurons_hidden = 4,
                                                  problem_type = "classification",
                                                  activ_type = "sigmoid"){
                              
-                             # defensive programming
-                             stopifnot(is.numeric(rand_state))
-                             stopifnot(is.numeric(layers_hidden), layers_hidden>0 & layers_hidden<4)
-                             stopifnot(is.numeric(neurons_hidden), layers_hidden>0 & layers_hidden<21)
+                             # Defensive programming section
+                             # We prepare for unexpected inputs
+                             stopifnot(layers_hidden>0 & layers_hidden<4)
+                             stopifnot(layers_hidden>0 & layers_hidden<21)
                              stopifnot(is.character(problem_type), problem_type %in% c("classification", "regression"))
                              stopifnot(is.character(activ_type), activ_type %in% c("sigmoid", "tanh", "relu"))
                              
-                             # the random state specified by the user
+                             # The random state specified by the user
                              private$rand_state = as.integer(rand_state)
                              
-                             # number of hidden layers
+                             # Number of hidden layers
                              private$.layers_hidden = as.integer(layers_hidden)
                              
-                             # number of neurons in hidden layers
+                             # Number of neurons in hidden layers
                              # (for simplicity, the number of neurons is the same in each hidden layer)
                              private$.neurons_hidden = as.integer(neurons_hidden)
                              
-                             # the problem type - either classification or regression
+                             # The problem type - either classification or regression
                              private$.problem_type = problem_type
                              
                              private$.activ_type = activ_type
                              
-                             # initializing the activation function in hidden layers
+                             # Initializing the activation function in hidden layers
                              if (activ_type == "sigmoid"){
                                private$activ_func = function(z) 1/(1+exp(-pmin(pmax(z, -500), 500)))
                                
@@ -162,17 +178,17 @@ NeuralNetwork <- R6Class("NeuralNetwork",
                                private$dactiv_func = function(z) as.numeric(z>0)
                              }
                              
-                             # initializing output and loss function based on problem type
+                             # Initializing output and loss function based on problem type
                              if (problem_type == "classification"){
                                
-                               # sigmoid as output
+                               # Sigmoid as output
                                private$out_func = function(z) 1/(1+exp(-pmin(pmax(z, -500), 500)))
                                private$dout_func = function(z){
                                  s = private$out_func(z)
                                  2 * s * (1-s)
                                }
                                
-                               # binary cross entropy
+                               # Binary cross entropy
                                private$loss_func = function(y, yhat){
                                  -(t(y) %*% log(pmax(yhat, .Machine$double.eps)) + (1-t(y)) %*% log(pmax((1-yhat), .Machine$double.eps))) / length(y)
                                }
@@ -195,8 +211,8 @@ NeuralNetwork <- R6Class("NeuralNetwork",
                                }
                              }
                              
-                             # initialize empty lists for storing
-                             # adding 1 to number of hidden layers to account for output layer
+                             # Initialize empty lists for storing
+                             # Adding 1 to number of hidden layers to account for output layer
                              private$z = vector(mode='list', length=private$.layers_hidden + 1)
                              private$.W = vector(mode='list', length=private$.layers_hidden + 1)
                              private$.b = vector(mode='list', length=private$.layers_hidden + 1)
@@ -211,14 +227,14 @@ NeuralNetwork <- R6Class("NeuralNetwork",
                              
                              set.seed(private$rand_state)
                              
-                             stopifnot(is.numeric(input_neurons))
+                             stopifnot(is.integer(input_neurons))
                              
-                             # initial weights and bias
-                             if (private$.activ_type == "sigmoid" | private$.activ_type == "tanh"){
+                             # Initial weights and bias
+                             if (private$.activ_type == "sigmoid" || private$.activ_type == "tanh"){
                                
-                               # for sigmoid and tanh, "glorot" weight initialization is used
+                               # For sigmoid and tanh, "glorot" weight initialization is used
                                
-                               # first layer
+                               # First layer
                                private$.W[[1]] <- matrix(runif(input_neurons * private$.neurons_hidden,
                                                            min=-(1/sqrt(input_neurons)),
                                                            max=(1/sqrt(input_neurons))),
@@ -244,7 +260,7 @@ NeuralNetwork <- R6Class("NeuralNetwork",
                                  }
                                }
                                
-                               # last layer
+                               # Last layer
                                private$.W[[private$.layers_hidden + 1]] <- matrix(runif(private$.neurons_hidden * 1,
                                                            min=-(1/sqrt(private$.neurons_hidden)),
                                                            max=(1/sqrt(private$.neurons_hidden))),
@@ -257,7 +273,7 @@ NeuralNetwork <- R6Class("NeuralNetwork",
                              }
                              else {
                                
-                               # for relu activation, "he" weight activation is used
+                               # For relu activation, "he" weight activation is used
                                private$.W[[1]] <- matrix(rnorm(input_neurons * private$.neurons_hidden,
                                                            mean=0,
                                                            sd=(2/sqrt(input_neurons))),
@@ -295,30 +311,37 @@ NeuralNetwork <- R6Class("NeuralNetwork",
                              
                            },
                            
-                           train = function(X, y, epochs, lr, batch_size){
+                           train = function(X, y, epochs=100, lr=0.01, batch_size=64){
                              
                              set.seed(private$rand_state)
                              
-                             stopifnot(is.data.frame(X) | is.matrix(X))
+                             # More defensive programming - checking data frame and matrix
+                             stopifnot(is.data.frame(X) || is.matrix(X))
                              
+                             # If there are NaN presents we return an error
                              if(any(is.na(X)) || any(is.na(y))){
                                stop("Error: There are missing values in your data!")
                              }
                              
+                             # Checking the type of target
                              if(private$.problem_type == "classification"){
-                               stopifnot(is.integer(y) | is.numeric(y), length(unique(y)) == 2)
+                               stopifnot(is.integer(y) || is.numeric(y), length(unique(y)) == 2)
                              }
                              else {
                                stopifnot(is.numeric(y))
                              }
                              
-                             stopifnot(is.numeric(epochs), epochs <= 10000)
+                             # Limiting the allowed number of epochs and checking the data types
+                             stopifnot(epochs <= 10000 && epochs >= 10)
                              stopifnot(is.numeric(lr))
-                             stopifnot(is.numeric(batch_size), batch_size <= dim(X)[1])
+                             stopifnot(batch_size <= dim(X)[1] && batch_size >= 32)
                              
+                             epochs = as.integer(epochs)
+                             
+                             batch_size = as.integer(batch_size)
+                             
+                             # Creating mini batches
                              batches = private$create_mini_batches(X, y, as.integer(batch_size))
-                             
-                             prev_mean = 0
                              
                              for (epo in 1:epochs){
                                loss = NULL
@@ -336,7 +359,7 @@ NeuralNetwork <- R6Class("NeuralNetwork",
                            
                            predict = function(X, threshold = 0.5){
                              
-                             stopifnot(is.data.frame(X) | is.matrix(X))
+                             stopifnot(is.data.frame(X) || is.matrix(X))
                              
                              if(any(is.na(X))){
                                stop("Error: There are missing values in your data!")
