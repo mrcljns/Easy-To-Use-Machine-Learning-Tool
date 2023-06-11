@@ -83,9 +83,9 @@ ui <- dashboardPage(
             radioButtons(
               inputId = "imputation_method",
               label = "Imputation method:",
-              selected = "Mean",
-              choiceNames = c("Mean", "Median"),
-              choiceValues = c("Mean", "Median"),
+              selected = NULL,
+              choiceNames = c("Mean", "Median", "Mode"),
+              choiceValues = c("Mean", "Median", "Mode"),
               inline = TRUE
             ),
             hr(),
@@ -110,7 +110,7 @@ ui <- dashboardPage(
               selected = NULL,
               choiceNames = c(),
               choiceValues = c(),
-              inline = FALSE
+              inline = TRUE
             ),
             hr(),
             actionButton("onehot_button", "Apply One-Hot Encoding"),
@@ -269,6 +269,11 @@ server <- function(input, output, session) {
         col_median <- median(values$df[, col], na.rm = TRUE)
         values$df[is.na(values$df[, col]), col] <- col_median
       }
+    } else if (input$imputation_method == "Mode") {
+      for (col in columns) {
+        col_mode <- names(sort(table(values$df[, col]), decreasing = TRUE))[1]
+        values$df[is.na(values$df[, col]), col] <- col_mode
+      }
     }
   })
   
@@ -301,22 +306,37 @@ server <- function(input, output, session) {
   
   observeEvent(input$onehot_button, {
     columns <- input$onehot_columns
-    if (any(!sapply(values$df[, columns], is.character))) {
+    
+    if (length(columns) != 1) {
       showModal(modalDialog(
         title = "Invalid Selection",
-        "One-hot encoding can only be applied to categorical columns.",
+        "Please select exactly one column for one-hot encoding.",
         easyClose = TRUE
       ))
     } else {
-      encoded_cols <- model.matrix(~ 0 + as.factor(values$df[, columns]))
-      colnames(encoded_cols) <- paste0(columns, "_", sub("as\\.factor\\(values\\$df\\[, columns\\]\\)", "", colnames(encoded_cols)))
-      values$prev_dfs <- c(values$prev_dfs, list(values$df))
-      values$df <- cbind(values$df, encoded_cols)
-      values$df <- values$df[, !names(values$df) %in% columns, drop = FALSE]
-      values$transformations <- c(
-        values$transformations,
-        paste("One-Hot Encoding on columns:", paste(columns, collapse = ", "))
-      )
+        if (any(!sapply(values$df[, columns], is.character))) {
+        showModal(modalDialog(
+          title = "Invalid Selection",
+          "One-hot encoding can only be applied to categorical columns.",
+          easyClose = TRUE
+        ))
+      } else if (any(sapply(values$df[, columns], function(x) any(is.na(x))))) {
+        showModal(modalDialog(
+          title = "Missing Values",
+          "One-hot encoding cannot be applied to columns with missing values.",
+          easyClose = TRUE
+        ))
+      } else {
+        encoded_cols <- model.matrix(~ 0 + as.factor(values$df[, columns]))
+        colnames(encoded_cols) <- paste0(columns, "_", sub("as\\.factor\\(values\\$df\\[, columns\\]\\)", "", colnames(encoded_cols)))
+        values$prev_dfs <- c(values$prev_dfs, list(values$df))
+        values$df <- cbind(values$df, encoded_cols)
+        values$df <- values$df[, !names(values$df) %in% columns, drop = FALSE]
+        values$transformations <- c(
+          values$transformations,
+          paste("One-Hot Encoding on columns:", paste(columns, collapse = ", "))
+        )
+      }
     }
   })
   
