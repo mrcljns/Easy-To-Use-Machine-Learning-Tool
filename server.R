@@ -1,7 +1,8 @@
 library(ggplot2)
 library(shiny)
 library(shinydashboard)
-library('corrplot')
+library(caret)
+library(corrplot)
 
 ui <- dashboardPage(
   dashboardHeader(title = "Easy to use ML Tool"),
@@ -9,7 +10,8 @@ ui <- dashboardPage(
     sidebarMenu(
       menuItem("Uploading files", tabName = "upload_files", icon = icon("upload")),
       menuItem("Data visualization", tabName = "data_visualization", icon = icon("bar-chart")),
-      menuItem("Data preprocessing", tabName = "data_preprocessing", icon = icon("sliders"))
+      menuItem("Data preprocessing", tabName = "data_preprocessing", icon = icon("sliders")),
+      menuItem("Modelling", tabName = "modelling", icon = icon("cogs"))
     )
   ),
   dashboardBody(
@@ -110,7 +112,7 @@ ui <- dashboardPage(
               selected = NULL,
               choiceNames = c(),
               choiceValues = c(),
-              inline = TRUE
+              inline = FALSE
             ),
             hr(),
             actionButton("onehot_button", "Apply One-Hot Encoding"),
@@ -137,6 +139,44 @@ ui <- dashboardPage(
             textOutput("transformation_history")
           )
         )
+      ),
+      tabItem(
+        tabName = "modelling",
+        fluidRow(
+          box(
+            title = "Modeling Options",
+            checkboxGroupInput(
+              inputId = "target_variable",
+              label = "Select Target Variable:",
+              selected = NULL,
+              choiceNames = c(),
+              choiceValues = c(),
+              inline = FALSE
+            )
+          ),
+        fluidRow(
+          box(
+            checkboxGroupInput(
+              inputId = "feature_variables",
+              label = "Select Feature Variables:",
+              selected = NULL,
+              choiceNames = c(),
+              choiceValues = c(),
+              inline = FALSE
+            ),
+            hr(),
+            actionButton("apply_model_button", "Apply Model")
+            )
+          )
+        ),
+        fluidRow(
+          box(
+            title = "Modeling Results",
+            dataTableOutput("modeling_table"),
+            plotOutput("modeling_plot"),
+            actionButton("split_data_button", "Split Data")
+          )
+        )
       )
     )
   )
@@ -148,7 +188,8 @@ server <- function(input, output, session) {
     prev_dfs = list(),
     original_df = NULL,
     transformations = character(),
-    imputation_info = ""
+    imputation_info = "",
+    split_df = NULL
   )
   
   observeEvent(input$file1, {
@@ -255,6 +296,17 @@ server <- function(input, output, session) {
       choiceNames = dfnames,
       choiceValues = dfnames
     )
+    updateCheckboxGroupInput(
+      session,
+      "target_variable",
+      choiceNames = dfnames,
+      choiceValues = dfnames
+    )
+    updateCheckboxGroupInput(
+      session,
+      "feature_variables",
+      choices = dfnames
+    )
   })
   
   observeEvent(input$imputation_button, {
@@ -350,7 +402,57 @@ server <- function(input, output, session) {
   
   output$transformation_history <- renderText({
     paste(values$transformations, collapse = "\n")
+  }) 
+  
+  observeEvent(input$apply_model_button, {
+    target_var <- input$target_variable
+    feature_vars <- input$feature_variables
+    
+    if (!is.null(target_var) && !is.null(feature_vars)) {
+      modeling_df <- isolate(values$df)[c(target_var, feature_vars)]
+      
+      output$modeling_table <- renderDataTable(
+        DT::datatable(modeling_df, options = list(scrollX = TRUE))
+      )
+      
+      output$modeling_plot <- renderPlot({
+        ggplot(modeling_df, aes(x = .data[[target_var]])) +
+          geom_histogram(fill = "steelblue", color = "white") +
+          labs(title = paste("Target variable -", target_var))
+      })
+    }
   })
+
+  observeEvent(input$split_data_button, {
+    if (!is.null(input$target_variable) && !is.null(input$feature_variables)) {
+      target_var <- input$target_variable
+      feature_vars <- input$feature_variables
+      if (any(is.na(values$df[, c(target_var, feature_vars)]))) {
+        showModal(
+          modalDialog(
+            title = "Missing Values",
+            "Please fill the empty values in your database before proceeding.",
+            easyClose = TRUE
+          )
+        )
+      } else {
+        modeling_df <- isolate(values$df)[c(target_var, feature_vars)]
+        data.index <- createDataPartition(modeling_df[, 1], p = 0.8, list = FALSE)
+        split_data <- modeling_df[data.index, ]
+        values$split_df <- split_data
+      }
+    }
+  })
+  
+  output$split_data_table <- renderDataTable({
+    split_df <- values$split_df
+    
+    if (!is.null(split_df)) {
+      DT::datatable(split_df, options = list(scrollX = TRUE))
+    }
+  })
+  
+  
 }
 
 shinyApp(ui, server)
