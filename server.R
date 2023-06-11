@@ -215,8 +215,23 @@ server <- function(input, output, session) {
     req(input$generate_heatmap, input$variable_choice)
     var <- input$variable_choice
     selected_df <- values$df[, var, drop = FALSE]
-    corr_matrix <- cor(selected_df)
-    corrplot(corr_matrix, method = "color", tl.col = "black", tl.srt = 0)
+    
+    # Filter out character variables from selected_df
+    numeric_vars <- sapply(selected_df, is.numeric)
+    selected_df <- selected_df[, numeric_vars, drop = FALSE]
+    
+    if (any(is.na(selected_df))) {
+      # Display a message when there are variables with missing values
+      plot.new()
+      text(0.5, 0.5, "Variables with missing values.\nPlease deal with NAs in the 'Data preprocessing' page.", cex = 1.2, col = "red", font = 2)
+    } else if (ncol(selected_df) > 1) {
+      corr_matrix <- cor(selected_df)
+      corrplot(corr_matrix, method = "color", tl.col = "black", tl.srt = 0)
+    } else {
+      # Display a message when only one numerical variable is selected
+      plot.new()
+      text(0.5, 0.5, "Please select more than one numerical variable for the heatmap.", cex = 1.2, col = "red", font = 2)
+    }
   })
   
   observe({
@@ -286,16 +301,23 @@ server <- function(input, output, session) {
   
   observeEvent(input$onehot_button, {
     columns <- input$onehot_columns
-    encoded_cols <- model.matrix(~ 0 + as.factor(values$df[, columns]))
-    colnames(encoded_cols) <- paste0(columns, "_", colnames(encoded_cols))
-    values$prev_dfs <- c(values$prev_dfs, list(values$df))
-    values$df <- cbind(values$df, encoded_cols)
-    values$df <- values$df[, !names(values$df) %in% columns, drop = FALSE]
-    values$transformations <- c(
-      values$transformations,
-      paste("One-Hot Encoding on columns:", paste(columns, collapse = ", ")
+    if (any(!sapply(values$df[, columns], is.character))) {
+      showModal(modalDialog(
+        title = "Invalid Selection",
+        "One-hot encoding can only be applied to categorical columns.",
+        easyClose = TRUE
+      ))
+    } else {
+      encoded_cols <- model.matrix(~ 0 + as.factor(values$df[, columns]))
+      colnames(encoded_cols) <- paste0(columns, "_", sub("as\\.factor\\(values\\$df\\[, columns\\]\\)", "", colnames(encoded_cols)))
+      values$prev_dfs <- c(values$prev_dfs, list(values$df))
+      values$df <- cbind(values$df, encoded_cols)
+      values$df <- values$df[, !names(values$df) %in% columns, drop = FALSE]
+      values$transformations <- c(
+        values$transformations,
+        paste("One-Hot Encoding on columns:", paste(columns, collapse = ", "))
       )
-    )
+    }
   })
   
   observeEvent(input$undo_button, {
