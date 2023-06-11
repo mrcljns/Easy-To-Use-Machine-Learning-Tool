@@ -1,6 +1,6 @@
 Do zrobienia -
 
-1. Heatmap - błąd wyskakuje, mały fix raczej
+1. Heatmap - DONE
 2. Zaznaczanie wielu zmiennych na raz - DONE
 3. One hot encoding - DONE
 4. alternatives for delete NA -> zamienić na average, itp - DONE
