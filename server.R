@@ -32,10 +32,26 @@ ui <- dashboardPage(
             radioButtons("quote", "Quote",
                          choices = c(None = "", "Double Quote" = '"', "Single Quote" = "'"),
                          selected = '"')
-          ),
+          )
+        ),
+        fluidRow(
           box(
             title = "Data File",
             DT::dataTableOutput("content1")
+          )
+        ),
+        fluidRow(
+          box(
+            title = "Data Summary",
+            DT::dataTableOutput("summary_table")
+          )
+        ),
+        fluidRow(
+          box(
+            title = "Change Variable Type",
+            selectInput("selected_variable", "Select Variable:", choices = NULL),
+            selectInput("selected_type", "Select Type:", choices = c("logical", "integer", "numeric", "character", "factor", "Date")),
+            actionButton("change_type_btn", "Change Type")
           )
         )
       ),
@@ -202,6 +218,8 @@ server <- function(input, output, session) {
         values$df <- values$original_df
         values$prev_dfs <- list()
         values$transformations <- character()
+        
+        updateSelectInput(session, "selected_variable", choices = colnames(values$df))
       },
       error = function(e) {
         stop(safeError(e))
@@ -210,7 +228,41 @@ server <- function(input, output, session) {
   })
   
   output$content1 <- DT::renderDataTable(DT::datatable(values$df, options = list(scrollX = TRUE)))
-  output$content2 <- DT::renderDataTable(DT::datatable(values$df, options = list(scrollX = TRUE)))
+  
+  data_summary <- reactive({
+    column_names <- colnames(values$df)
+    column_types <- sapply(values$df, class)
+    
+    summary_data <- data.frame(Type = column_types, stringsAsFactors = FALSE)
+    summary_data
+  })
+  
+  output$summary_table <- DT::renderDataTable({
+    DT::datatable(data_summary())
+  })
+  
+  observeEvent(input$change_type_btn, {
+    req(input$selected_variable, input$selected_type)
+    selected_var <- input$selected_variable
+    new_type <- input$selected_type
+    
+    if (selected_var %in% colnames(values$df)) {
+      converted_var <- try(as(values$df[[selected_var]], new_type), silent = TRUE)
+      
+      if (inherits(converted_var, "try-error")) {
+        showModal(
+          modalDialog(
+            title = "Warning",
+            paste("Failed to convert", selected_var, "to", new_type),
+            easyClose = TRUE
+          )
+        )
+      } else {
+        values$df[[selected_var]] <- converted_var
+        updateSelectInput(session, "selected_variable", choices = colnames(values$df))
+      }
+    }
+  })
   
   observe({
     req(values$df)
@@ -231,13 +283,11 @@ server <- function(input, output, session) {
       
       renderPlot({
         if (is.numeric(values$df[[local_var_name]]) || is.integer(values$df[[local_var_name]])) {
-          # Histogram plot for numeric or integer variables
           ggplot(values$df, aes_string(x = local_var_name)) +
             geom_histogram(fill = "steelblue", color = "black") +
             labs(title = paste("Histogram of", local_var_name),
                  x = local_var_name, y = "Count")
         } else {
-          # Bar plot for factor
           ggplot(values$df, aes_string(x = local_var_name)) +
             geom_bar(fill = "green", color = "black") +
             labs(title = paste("Bar Plot of", local_var_name),
@@ -251,25 +301,21 @@ server <- function(input, output, session) {
     })
   })
   
-  # Generate heatmap
   output$heatmap_plot <- renderPlot({
     req(input$generate_heatmap, input$variable_choice)
     var <- input$variable_choice
     selected_df <- values$df[, var, drop = FALSE]
     
-    # Filter out character variables from selected_df
     numeric_vars <- sapply(selected_df, is.numeric)
     selected_df <- selected_df[, numeric_vars, drop = FALSE]
     
     if (any(is.na(selected_df))) {
-      # Display a message when there are variables with missing values
       plot.new()
       text(0.5, 0.5, "Variables with missing values.\nPlease deal with NAs in the 'Data preprocessing' page.", cex = 1.2, col = "red", font = 2)
     } else if (ncol(selected_df) > 1) {
       corr_matrix <- cor(selected_df)
       corrplot(corr_matrix, method = "color", tl.col = "black", tl.srt = 0)
     } else {
-      # Display a message when only one numerical variable is selected
       plot.new()
       text(0.5, 0.5, "Please select more than one numerical variable for the heatmap.", cex = 1.2, col = "red", font = 2)
     }
