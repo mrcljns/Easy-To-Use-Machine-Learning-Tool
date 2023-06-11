@@ -1,12 +1,14 @@
 library(ggplot2)
 library(shiny)
 library(shinydashboard)
+library('corrplot')
 
 ui <- dashboardPage(
   dashboardHeader(title = "Easy to use ML Tool"),
   dashboardSidebar(
     sidebarMenu(
       menuItem("Uploading files", tabName = "upload_files", icon = icon("upload")),
+      menuItem("Data visualizaiton", tabName = "data_visualizaiton", icon=icon("bar-chart")),
       menuItem("Data preprocessing", tabName = "data_preprocessing", icon = icon("sliders"))
     )
   ),
@@ -28,12 +30,39 @@ ui <- dashboardPage(
             radioButtons("quote", "Quote",
                          choices = c(None = "", "Double Quote" = '"', "Single Quote" = "'"),
                          selected = '"')
+          ),
+          box(
+            title = "Data File",
+            DT::dataTableOutput("content1")
+          )
+        )
+      ),
+      tabItem(
+        tabName = "data_visualizaiton",
+        fluidRow(
+          box(
+            title = "Visualize variables",
+            checkboxGroupInput(
+              inputId = "variable_choice",
+              label = "Choose columns for visualization:",
+              selected = NULL,
+              choiceNames = c(),
+              choiceValues = c(),
+              inline = FALSE
+            ),
+            hr(),
+            actionButton("generate_plots", "Generate Plots", icon = icon("bar-chart")),
+            actionButton("generate_heatmap", "Generate Heatmap")  # Add button to generate heatmap
           )
         ),
         fluidRow(
           box(
-            title = "Data File",
-            DT::dataTableOutput("content1")
+            title = "Plots",
+            uiOutput("plot_outputs")
+          ),
+          box(
+            title = "Heatmap",
+            plotOutput("heatmap_plot")
           )
         )
       ),
@@ -66,6 +95,10 @@ ui <- dashboardPage(
             tags$span(
               "Imputation is an irreversible action. Please ensure you have a backup of your data.", style = "color: red; margin-top: 10px;"
             ),
+          ),
+          box(
+            title = "Processed Data",
+            DT::dataTableOutput("content2")
           )
         ),
         fluidRow(
@@ -88,12 +121,7 @@ ui <- dashboardPage(
             tags$br(),
             textOutput("transformation_history")
           )
-        ),
-        fluidRow(
-          box(
-            title = "Processed Data",
-            DT::dataTableOutput("content2")
-          )
+          
         )
       )
     )
@@ -128,6 +156,54 @@ server <- function(input, output, session) {
   
   output$content1 <- DT::renderDataTable(DT::datatable(values$df, options = list(scrollX = TRUE)))
   output$content2 <- DT::renderDataTable(DT::datatable(values$df, options = list(scrollX = TRUE)))
+  
+  observe({
+    req(values$df)
+    var_names <- names(values$df)
+    updateCheckboxGroupInput(
+      session,
+      "variable_choice",
+      choices = var_names
+    )
+  })
+  
+  observeEvent(input$generate_plots, {
+    req(input$variable_choice)
+    var <- input$variable_choice
+    
+    plot_outputs <- lapply(var, function(var_name) {
+      local_var_name <- var_name
+      
+      renderPlot({
+        if (is.numeric(values$df[[local_var_name]]) || is.integer(values$df[[local_var_name]])) {
+          # Histogram plot for numeric or integer variables
+          ggplot(values$df, aes_string(x = local_var_name)) +
+            geom_histogram(fill = "steelblue", color = "black") +
+            labs(title = paste("Histogram of", local_var_name),
+                 x = local_var_name, y = "Count")
+        } else {
+          # Bar plot for factor
+          ggplot(values$df, aes_string(x = local_var_name)) +
+            geom_bar(fill = "green", color = "black") +
+            labs(title = paste("Bar Plot of", local_var_name),
+                 x = local_var_name, y = "Count")
+        }
+      })
+    })
+    
+    output$plot_outputs <- renderUI({
+      do.call(tagList, plot_outputs)
+    })
+  })
+  
+  # Generate heatmap
+  output$heatmap_plot <- renderPlot({
+    req(input$generate_heatmap, input$variable_choice)
+    var <- input$variable_choice
+    selected_df <- values$df[, var, drop = FALSE]
+    corr_matrix <- cor(selected_df)
+    corrplot(corr_matrix, method = "color", tl.col = "black", tl.srt = 0)
+  })
   
   observe({
     req(input$file1)
