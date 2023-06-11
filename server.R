@@ -8,7 +8,7 @@ ui <- dashboardPage(
   dashboardSidebar(
     sidebarMenu(
       menuItem("Uploading files", tabName = "upload_files", icon = icon("upload")),
-      menuItem("Data visualizaiton", tabName = "data_visualizaiton", icon=icon("bar-chart")),
+      menuItem("Data visualization", tabName = "data_visualization", icon = icon("bar-chart")),
       menuItem("Data preprocessing", tabName = "data_preprocessing", icon = icon("sliders"))
     )
   ),
@@ -38,7 +38,7 @@ ui <- dashboardPage(
         )
       ),
       tabItem(
-        tabName = "data_visualizaiton",
+        tabName = "data_visualization",
         fluidRow(
           box(
             title = "Visualize variables",
@@ -52,7 +52,7 @@ ui <- dashboardPage(
             ),
             hr(),
             actionButton("generate_plots", "Generate Plots", icon = icon("bar-chart")),
-            actionButton("generate_heatmap", "Generate Heatmap")  # Add button to generate heatmap
+            actionButton("generate_heatmap", "Generate Heatmap")
           )
         ),
         fluidRow(
@@ -103,6 +103,21 @@ ui <- dashboardPage(
         ),
         fluidRow(
           box(
+            title = "One-Hot encoding",
+            checkboxGroupInput(
+              inputId = "onehot_columns",
+              label = "Choose columns for encoding:",
+              selected = NULL,
+              choiceNames = c(),
+              choiceValues = c(),
+              inline = FALSE
+            ),
+            hr(),
+            actionButton("onehot_button", "Apply One-Hot Encoding"),
+          )
+        ),
+        fluidRow(
+          box(
             title = "Transformation Options",
             checkboxGroupInput(
               inputId = "transformation_columns",
@@ -121,7 +136,6 @@ ui <- dashboardPage(
             tags$br(),
             textOutput("transformation_history")
           )
-          
         )
       )
     )
@@ -216,6 +230,12 @@ server <- function(input, output, session) {
     )
     updateCheckboxGroupInput(
       session,
+      "onehot_columns",
+      choiceNames = dfnames,
+      choiceValues = dfnames
+    )
+    updateCheckboxGroupInput(
+      session,
       "transformation_columns",
       choiceNames = dfnames,
       choiceValues = dfnames
@@ -229,15 +249,11 @@ server <- function(input, output, session) {
         col_mean <- mean(values$df[, col], na.rm = TRUE)
         values$df[is.na(values$df[, col]), col] <- col_mean
       }
-      values$prev_dfs <- c(values$prev_dfs, list(values$df))
-      values$imputation_info <- paste("Mean Imputation on columns:", paste(columns, collapse = ", "))
     } else if (input$imputation_method == "Median") {
       for (col in columns) {
         col_median <- median(values$df[, col], na.rm = TRUE)
         values$df[is.na(values$df[, col]), col] <- col_median
       }
-      values$prev_dfs <- c(values$prev_dfs, list(values$df))
-      values$imputation_info <- paste("Median Imputation on columns:", paste(columns, collapse = ", "))
     }
   })
   
@@ -268,23 +284,31 @@ server <- function(input, output, session) {
     )
   })
   
+  observeEvent(input$onehot_button, {
+    columns <- input$onehot_columns
+    encoded_cols <- model.matrix(~ 0 + as.factor(values$df[, columns]))
+    colnames(encoded_cols) <- paste0(columns, "_", colnames(encoded_cols))
+    values$prev_dfs <- c(values$prev_dfs, list(values$df))
+    values$df <- cbind(values$df, encoded_cols)
+    values$df <- values$df[, !names(values$df) %in% columns, drop = FALSE]
+    values$transformations <- c(
+      values$transformations,
+      paste("One-Hot Encoding on columns:", paste(columns, collapse = ", ")
+      )
+    )
+  })
+  
   observeEvent(input$undo_button, {
-    if (length(values$transformations) > 0) {
-      undo_transformations <- tail(values$transformations, 1)
-      values$transformations <- head(values$transformations, -1)
-      
-      if (grepl("Standardization", undo_transformations) || grepl("Normalization", undo_transformations)) {
-        values$df <- tail(values$prev_dfs, 1)[[1]]
-        values$prev_dfs <- head(values$prev_dfs, -1)
-      }
+    if (length(values$prev_dfs) > 0) {
+      values$df <- tail(values$prev_dfs, n = 1)[[1]]
+      values$prev_dfs <- head(values$prev_dfs, n = length(values$prev_dfs) - 1)
+      values$transformations <- head(values$transformations, n = length(values$transformations) - 1)
     }
   })
   
-  
   output$transformation_history <- renderText({
-    paste("Transformation History:", paste(values$transformations, collapse = "\n"))
+    paste(values$transformations, collapse = "\n")
   })
-  
 }
 
 shinyApp(ui, server)
