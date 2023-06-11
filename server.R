@@ -332,6 +332,7 @@ server <- function(input, output, session) {
   })
   
   output$content1 <- DT::renderDataTable(DT::datatable(values$df, options = list(scrollX = TRUE)))
+  output$content2 <- DT::renderDataTable(DT::datatable(values$df, options = list(scrollX = TRUE)))
   
   data_summary <- reactive({
     column_names <- colnames(values$df)
