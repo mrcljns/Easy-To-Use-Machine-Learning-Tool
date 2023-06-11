@@ -3,6 +3,9 @@ library(shiny)
 library(shinydashboard)
 library(caret)
 library(corrplot)
+library(Rcpp)
+
+options(scipen=999)
 
 ui <- dashboardPage(
   dashboardHeader(title = "Easy to use ML Tool"),
@@ -11,7 +14,7 @@ ui <- dashboardPage(
       menuItem("Uploading files", tabName = "upload_files", icon = icon("upload")),
       menuItem("Data visualization", tabName = "data_visualization", icon = icon("bar-chart")),
       menuItem("Data preprocessing", tabName = "data_preprocessing", icon = icon("sliders")),
-      menuItem("Modelling", tabName = "modelling", icon = icon("cogs"))
+      menuItem("Neural network", tabName = "neural_net", icon = icon("flag", lib="glyphicon"))
     )
   ),
   dashboardBody(
@@ -20,6 +23,7 @@ ui <- dashboardPage(
         tabName = "upload_files",
         fluidRow(
           box(
+            width = 12,
             title = "Upload CSV File",
             fileInput("file1", "Choose CSV File",
                       multiple = FALSE,
@@ -32,10 +36,9 @@ ui <- dashboardPage(
             radioButtons("quote", "Quote",
                          choices = c(None = "", "Double Quote" = '"', "Single Quote" = "'"),
                          selected = '"')
-          )
-        ),
-        fluidRow(
+          ),
           box(
+            width = 12,
             title = "Data File",
             DT::dataTableOutput("content1")
           )
@@ -44,9 +47,7 @@ ui <- dashboardPage(
           box(
             title = "Data Summary",
             DT::dataTableOutput("summary_table")
-          )
-        ),
-        fluidRow(
+          ),
           box(
             title = "Change Variable Type",
             selectInput("selected_variable", "Select Variable:", choices = NULL),
@@ -88,6 +89,7 @@ ui <- dashboardPage(
         tabName = "data_preprocessing",
         fluidRow(
           box(
+            width = 4,
             title = "Imputation Options",
             checkboxGroupInput(
               inputId = "imputation_columns",
@@ -108,19 +110,9 @@ ui <- dashboardPage(
             ),
             hr(),
             actionButton("imputation_button", "Apply Imputation"),
-            tags$br(),
-            tags$strong("Note:"),
-            tags$span(
-              "Imputation is an irreversible action. Please ensure you have a backup of your data.", style = "color: red; margin-top: 10px;"
-            ),
           ),
           box(
-            title = "Processed Data",
-            DT::dataTableOutput("content2")
-          )
-        ),
-        fluidRow(
-          box(
+            width = 4,
             title = "One-Hot encoding",
             checkboxGroupInput(
               inputId = "onehot_columns",
@@ -132,10 +124,9 @@ ui <- dashboardPage(
             ),
             hr(),
             actionButton("onehot_button", "Apply One-Hot Encoding"),
-          )
-        ),
-        fluidRow(
+          ),
           box(
+            width = 4,
             title = "Transformation Options",
             checkboxGroupInput(
               inputId = "transformation_columns",
@@ -147,50 +138,163 @@ ui <- dashboardPage(
             ),
             hr(),
             actionButton("standardization_button", "Apply Standardization"),
-            actionButton("normalization_button", "Apply Normalization"),
-            hr(),
+            actionButton("normalization_button", "Apply Normalization")
+          )
+        ),
+        fluidRow(
+          box(
+            width = 12,
             actionButton("undo_button", "Undo last transformation"),
+            tags$br(),
+            tags$strong("Note:"),
+            tags$span(
+              "Imputation is an irreversible action. Please ensure you have a backup of your data.", style = "color: red; margin-top: 10px;"
+            ),
             tags$br(),
             tags$br(),
             textOutput("transformation_history")
           )
+        ),
+        fluidRow(
+          box(
+            width = 12,
+            title = "Processed Data",
+            DT::dataTableOutput("content2")
+          )
         )
       ),
       tabItem(
-        tabName = "modelling",
+        tabName = "neural_net",
         fluidRow(
           box(
-            title = "Modeling Options",
-            checkboxGroupInput(
-              inputId = "target_variable",
-              label = "Select Target Variable:",
-              selected = NULL,
-              choiceNames = c(),
-              choiceValues = c(),
-              inline = FALSE
-            )
-          ),
-        fluidRow(
-          box(
-            checkboxGroupInput(
-              inputId = "feature_variables",
-              label = "Select Feature Variables:",
-              selected = NULL,
-              choiceNames = c(),
-              choiceValues = c(),
-              inline = FALSE
+            width = 12,
+            title = "Choose features and target",
+            column(
+              width = 6,
+              selectInput(
+                inputId = "target_variable",
+                label = "Select Target Variable:",
+                selected = NULL,
+                choices = c()
+              )
             ),
-            hr(),
-            actionButton("apply_model_button", "Apply Model")
+            column(
+              width = 6,
+              checkboxGroupInput(
+                inputId = "feature_variables",
+                label = "Select Feature Variables:",
+                selected = NULL,
+                choiceNames = c(),
+                choiceValues = c(),
+                inline = FALSE
+                )
             )
           )
         ),
         fluidRow(
           box(
-            title = "Modeling Results",
-            dataTableOutput("modeling_table"),
-            plotOutput("modeling_plot"),
-            actionButton("split_data_button", "Split Data")
+            width = 12,
+            title = "Customize the network",
+            column(
+              width = 4,
+              numericInput(
+                inputId = "random_state_choice",
+                label = "Enter the random state seed:",
+                value = 42,
+                min = 1,
+                max = 100,
+                step = 1,
+                width = "300px"
+              )
+            ),
+            column(
+              width = 4,
+              numericInput(
+                inputId = "hidden_layer_num_choice",
+                label = "Enter the number of hidden layers:",
+                value = 2,
+                min = 1,
+                max = 3,
+                step = 1,
+                width = "300px"
+                )),
+            column(
+              width = 4,
+              numericInput(
+                inputId = "hidden_neuron_num_choice",
+                label = "Enter the number of neurons in hidden layer:",
+                value = 4,
+                min = 1,
+                max = 20,
+                step = 1,
+                width = "300px"
+              )
+            ),
+            hr(),
+            radioButtons(
+              inputId = "problem_type_choice",
+              label = "Problem type:",
+              selected = "regression",
+              choiceNames = c("Regression", "Classification"),
+              choiceValues = c("regression", "classification"),
+              inline = TRUE
+            ),
+            radioButtons(
+              inputId = "activation_function_choice",
+              label = "Activation function:",
+              selected = "sigmoid",
+              choiceNames = c("Sigmoid", "Tanh", "ReLu"),
+              choiceValues = c("sigmoid", "tanh", "relu"),
+              inline = TRUE
+            ),
+          )
+        ),
+        fluidRow(
+          box(
+            width = 12,
+            title = "Training options",
+            column(
+              width = 4,
+                numericInput(
+                  inputId = "epochs_num_choice",
+                  label = "Enter the random state seed:",
+                  value = 1000,
+                  min = 100,
+                  max = 10000,
+                  step = 1,
+                  width = "300px"
+                )),
+            column(
+              width = 4,
+                numericInput(
+                  inputId = "learning_rate_choice",
+                  label = "Enter the learning rate:",
+                  value = 0.01,
+                  min = 1e-5,
+                  max = 1e-1,
+                  step = 1e-4,
+                  width = "300px"
+                )),
+            column(
+              width = 4,
+                numericInput(
+                  inputId = "batch_size_choice",
+                  label = "Enter the batch size",
+                  value = 64,
+                  min = 32,
+                  max = 128,
+                  step = 1,
+                  width = "300px"
+                )
+            ),
+            hr(),
+            actionButton("training_button", "Train the network", icon = icon("cog", lib="glyphicon")),
+          )
+        ),
+        fluidRow(
+          box(
+            width = 12,
+            verbatimTextOutput("results")
           )
         )
       )
@@ -342,11 +446,11 @@ server <- function(input, output, session) {
       choiceNames = dfnames,
       choiceValues = dfnames
     )
-    updateCheckboxGroupInput(
+    updateSelectInput(
       session,
       "target_variable",
-      choiceNames = dfnames,
-      choiceValues = dfnames
+      choices = dfnames,
+      selected = dfnames[1]
     )
     updateCheckboxGroupInput(
       session,
@@ -412,7 +516,7 @@ server <- function(input, output, session) {
         easyClose = TRUE
       ))
     } else {
-        if (any(!sapply(values$df[, columns], is.character))) {
+      if (any(!sapply(values$df[, columns], is.character))) {
         showModal(modalDialog(
           title = "Invalid Selection",
           "One-hot encoding can only be applied to categorical columns.",
@@ -450,30 +554,12 @@ server <- function(input, output, session) {
     paste(values$transformations, collapse = "\n")
   }) 
   
-  observeEvent(input$apply_model_button, {
-    target_var <- input$target_variable
-    feature_vars <- input$feature_variables
+  observeEvent(input$training_button, {
     
-    if (!is.null(target_var) && !is.null(feature_vars)) {
-      modeling_df <- isolate(values$df)[c(target_var, feature_vars)]
-      
-      output$modeling_table <- renderDataTable(
-        DT::datatable(modeling_df, options = list(scrollX = TRUE))
-      )
-      
-      output$modeling_plot <- renderPlot({
-        ggplot(modeling_df, aes(x = .data[[target_var]])) +
-          geom_histogram(fill = "steelblue", color = "white") +
-          labs(title = paste("Target variable -", target_var))
-      })
-    }
-  })
-
-  observeEvent(input$split_data_button, {
     if (!is.null(input$target_variable) && !is.null(input$feature_variables)) {
-      target_var <- input$target_variable
-      feature_vars <- input$feature_variables
-      if (any(is.na(values$df[, c(target_var, feature_vars)]))) {
+      values$target_var <- input$target_variable
+      values$feature_vars <- input$feature_variables
+      if (any(is.na(values$df[, c(values$target_var, values$feature_vars)]))) {
         showModal(
           modalDialog(
             title = "Missing Values",
@@ -482,19 +568,36 @@ server <- function(input, output, session) {
           )
         )
       } else {
-        modeling_df <- isolate(values$df)[c(target_var, feature_vars)]
+        modeling_df <- isolate(values$df)[c(values$target_var, values$feature_vars)]
         data.index <- createDataPartition(modeling_df[, 1], p = 0.8, list = FALSE)
-        split_data <- modeling_df[data.index, ]
-        values$split_df <- split_data
+        train_data <- modeling_df[data.index, ]
+        test_data <- modeling_df[-data.index, ]
+        values$X_train <- train_data[values$feature_vars]
+        values$y_train <- train_data[,values$target_var]
+        values$X_test <- test_data[values$feature_vars]
+        values$y_test <- test_data[,values$target_var]
       }
     }
-  })
-  
-  output$split_data_table <- renderDataTable({
-    split_df <- values$split_df
+
+    source('r_rewrite_model.R')
+
+    net <- NeuralNetwork$new(input$random_state_choice, input$hidden_layer_num_choice,
+                             input$hidden_neuron_num_choice, input$problem_type_choice,
+                             input$activation_function_choice)
     
-    if (!is.null(split_df)) {
-      DT::datatable(split_df, options = list(scrollX = TRUE))
+    net$init_network(ncol(values$X_train))
+    
+    net$train(values$X_train, values$y_train, input$epochs_num_choice, input$learning_rate_choice,
+              input$batch_size_choice)
+    
+    preds <- net$predict(values$X_test)
+    
+    if (input$problem_type_choice == "regression"){
+      output$results <- renderText({ postResample(pred = preds, obs = values$y_test) })
+    }
+    else {
+      output$results <- renderPrint({ confusionMatrix(data = as.factor(as.integer(preds)), 
+                                                     reference = as.factor(as.integer(values$y_test))) })
     }
   })
   
