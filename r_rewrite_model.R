@@ -227,7 +227,7 @@ NeuralNetwork <- R6Class("NeuralNetwork",
                              
                              set.seed(private$rand_state)
                              
-                             stopifnot(is.integer(input_neurons))
+                             input_neurons <- as.integer(input_neurons)
                              
                              # Initial weights and bias
                              if (private$.activ_type == "sigmoid" || private$.activ_type == "tanh"){
