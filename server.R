@@ -501,7 +501,7 @@ server <- function(input, output, session) {
   observeEvent(input$standardization_button, {
     columns <- input$transformation_columns
     temp <- as.data.frame(values$df[, columns])
-    temp <- scale(temp)
+    temp <- as.data.frame(scale(temp))
     values$prev_dfs <- c(values$prev_dfs, list(values$df))
     values$df[, columns] <- temp
     values$transformations <- c(
