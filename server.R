@@ -605,7 +605,7 @@ server <- function(input, output, session) {
       }
       else {
         modeling_df <- isolate(values$df)[c(values$target_var, values$feature_vars)]
-        data.index <- createDataPartition(modeling_df[, 1], p = 0.8, list = FALSE)
+        data.index <- createDataPartition(modeling_df[,values$target_var], p = 0.8, list = FALSE)
         train_data <- modeling_df[data.index, ]
         test_data <- modeling_df[-data.index, ]
         
@@ -625,27 +625,48 @@ server <- function(input, output, session) {
         values$X_test <- test_data[values$feature_vars]
         values$y_test <- test_data[,values$target_var]
         
-        source('r_rewrite_model.R')
-        
-        net <- NeuralNetwork$new(input$random_state_choice, input$hidden_layer_num_choice,
-                                 input$hidden_neuron_num_choice, input$problem_type_choice,
-                                 input$activation_function_choice)
-        
-        net$init_network(ncol(values$X_train))
-        
-        net$train(values$X_train, values$y_train, input$epochs_num_choice, input$learning_rate_choice,
-                  input$batch_size_choice)
-        
-        preds <- net$predict(values$X_test)
-        
-        if (input$problem_type_choice == "regression"){
-          output$results <- renderPrint({ postResample(pred = preds, obs = values$y_test) })
+        if (input$problem_type_choice == "regression" && !is.numeric(values$y_train)){
+          showModal(
+            modalDialog(
+              title = "Wrong target type",
+              "For regression, target must be numeric.",
+              easyClose = TRUE
+            )
+          )
         }
-        else {
-          output$results <- renderPrint({ confusionMatrix(data = as.factor(as.integer(preds)), 
-                                                          reference = as.factor(as.integer(values$y_test))) })
+        else if (input$problem_type_choice == "classification" && 
+                 !(is.numeric(values$y_train) || is.logical(values$y_train))){
+          showModal(
+            modalDialog(
+              title = "Wrong target type",
+              "For classification, target must be numeric/integer/logical.",
+              easyClose = TRUE
+            )
+          )
         }
-      }
+        else{
+          source('r_rewrite_model.R')
+          
+          net <- NeuralNetwork$new(input$random_state_choice, input$hidden_layer_num_choice,
+                                   input$hidden_neuron_num_choice, input$problem_type_choice,
+                                   input$activation_function_choice)
+          
+          net$init_network(ncol(values$X_train))
+          
+          net$train(values$X_train, values$y_train, input$epochs_num_choice, input$learning_rate_choice,
+                    input$batch_size_choice)
+          
+          preds <- net$predict(values$X_test)
+          
+          if (input$problem_type_choice == "regression"){
+            output$results <- renderPrint({ postResample(pred = preds, obs = values$y_test) })
+          }
+          else {
+            output$results <- renderPrint({ confusionMatrix(data = as.factor(as.integer(preds)),
+                                                            reference = as.factor(as.integer(values$y_test))) })
+          }
+        }
+        }
     }
     else {
       showModal(
