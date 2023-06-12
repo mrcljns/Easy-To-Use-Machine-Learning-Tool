@@ -12,6 +12,7 @@ ui <- dashboardPage(
   dashboardSidebar(
     sidebarMenu(
       menuItem("Uploading files", tabName = "upload_files", icon = icon("upload")),
+      menuItem("Modifying data types", tabName = "modif_dtypes", icon = icon("cog")),
       menuItem("Data visualization", tabName = "data_visualization", icon = icon("bar-chart")),
       menuItem("Data preprocessing", tabName = "data_preprocessing", icon = icon("sliders")),
       menuItem("Neural network", tabName = "neural_net", icon = icon("flag", lib="glyphicon"))
@@ -42,7 +43,10 @@ ui <- dashboardPage(
             title = "Data File",
             DT::dataTableOutput("content1")
           )
-        ),
+        )
+      ),
+      tabItem(
+        tabName = "modif_dtypes",
         fluidRow(
           box(
             title = "Data Summary",
@@ -557,7 +561,7 @@ server <- function(input, output, session) {
   
   observeEvent(input$training_button, {
     
-    if (!is.null(input$target_variable) && !is.null(input$feature_variables)) {
+    if (!is.null(input$target_variable) || !is.null(input$feature_variables)) {
       values$target_var <- input$target_variable
       values$feature_vars <- input$feature_variables
       if (any(is.na(values$df[, c(values$target_var, values$feature_vars)]))) {
@@ -568,7 +572,38 @@ server <- function(input, output, session) {
             easyClose = TRUE
           )
         )
-      } else {
+      }
+      else if (any(sapply(values$df[, c(values$target_var, values$feature_vars)], 
+                          function(x) class(x) == "character"))){
+        showModal(
+          modalDialog(
+            title = "Wrong data type",
+            "Character variables are not supported as feature/target.",
+            easyClose = TRUE
+          )
+        )
+      }
+      else if (any(sapply(values$df[, c(values$target_var, values$feature_vars)], 
+                          function(x) class(x) == "factor"))){
+        showModal(
+          modalDialog(
+            title = "Wrong data type",
+            "Factor variables are not supported as feature/target.",
+            easyClose = TRUE
+          )
+        )
+      }
+      else if (any(sapply(values$df[, c(values$target_var, values$feature_vars)], 
+                          function(x) class(x) == "Date"))){
+        showModal(
+          modalDialog(
+            title = "Wrong data type",
+            "Date variables are not supported as feature/target.",
+            easyClose = TRUE
+          )
+        )
+      }
+      else {
         modeling_df <- isolate(values$df)[c(values$target_var, values$feature_vars)]
         data.index <- createDataPartition(modeling_df[, 1], p = 0.8, list = FALSE)
         train_data <- modeling_df[data.index, ]
@@ -579,9 +614,9 @@ server <- function(input, output, session) {
           train_data <- downSample(x = train_data[values$feature_vars],
                                    y = as.factor(train_data[, values$target_var]),
                                    yname = values$target_var)
-          
-          train_data[values$target_var] <- as.integer(as.character(train_data[, values$target_var]))
-          
+
+          train_data[values$target_var] <- as.integer(train_data[, values$target_var]) - 1
+
           train_data <- train_data[sample(1:nrow(train_data)),]
         }
 
@@ -589,28 +624,37 @@ server <- function(input, output, session) {
         values$y_train <- train_data[,values$target_var]
         values$X_test <- test_data[values$feature_vars]
         values$y_test <- test_data[,values$target_var]
+        
+        source('r_rewrite_model.R')
+        
+        net <- NeuralNetwork$new(input$random_state_choice, input$hidden_layer_num_choice,
+                                 input$hidden_neuron_num_choice, input$problem_type_choice,
+                                 input$activation_function_choice)
+        
+        net$init_network(ncol(values$X_train))
+        
+        net$train(values$X_train, values$y_train, input$epochs_num_choice, input$learning_rate_choice,
+                  input$batch_size_choice)
+        
+        preds <- net$predict(values$X_test)
+        
+        if (input$problem_type_choice == "regression"){
+          output$results <- renderPrint({ postResample(pred = preds, obs = values$y_test) })
+        }
+        else {
+          output$results <- renderPrint({ confusionMatrix(data = as.factor(as.integer(preds)), 
+                                                          reference = as.factor(as.integer(values$y_test))) })
+        }
       }
     }
-
-    source('r_rewrite_model.R')
-
-    net <- NeuralNetwork$new(input$random_state_choice, input$hidden_layer_num_choice,
-                             input$hidden_neuron_num_choice, input$problem_type_choice,
-                             input$activation_function_choice)
-    
-    net$init_network(ncol(values$X_train))
-    
-    net$train(values$X_train, values$y_train, input$epochs_num_choice, input$learning_rate_choice,
-              input$batch_size_choice)
-    
-    preds <- net$predict(values$X_test)
-    
-    if (input$problem_type_choice == "regression"){
-      output$results <- renderPrint({ postResample(pred = preds, obs = values$y_test) })
-    }
     else {
-      output$results <- renderPrint({ confusionMatrix(data = as.factor(as.integer(preds)), 
-                                                     reference = as.factor(as.integer(values$y_test))) })
+      showModal(
+        modalDialog(
+          title = "Missing target or features",
+          "Please choose the features/target before proceeding.",
+          easyClose = TRUE
+        )
+      )
     }
   })
   

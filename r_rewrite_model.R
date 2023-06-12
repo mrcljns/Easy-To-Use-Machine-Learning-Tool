@@ -325,7 +325,8 @@ NeuralNetwork <- R6Class("NeuralNetwork",
                              
                              # Checking the type of target
                              if(private$.problem_type == "classification"){
-                               stopifnot(is.integer(y) || is.numeric(y), length(unique(y)) == 2)
+                               stopifnot(is.integer(y) || is.numeric(y) || is.logical(y), 
+                                         length(unique(y)) == 2)
                              }
                              else {
                                stopifnot(is.numeric(y))
