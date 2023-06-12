@@ -84,30 +84,6 @@ NeuralNetwork <- R6Class("NeuralNetwork",
                            
                            create_mini_batches = function(X, y, batch_size) {
                              create_mini_batches_cpp(as.matrix(X), y, batch_size)
-                             # mini_batches <- list()
-                             # data <- cbind(X, y)
-                             # data <- data[sample(nrow(data)), ]
-                             # n_minibatches <- floor(nrow(data) / batch_size)
-                             # 
-                             # for (i in 0:(n_minibatches)) {
-                             #   start <- i * batch_size + 1
-                             #   end <- min((i + 1) * batch_size, nrow(data))
-                             #   mini_batch <- data[start:end, ]
-                             #   X_mini <- mini_batch[, -ncol(mini_batch)]
-                             #   Y_mini <- matrix(mini_batch[, ncol(mini_batch)], nrow = length(start:end), ncol = 1)
-                             #   mini_batches[[i + 1]] <- list(X_mini, Y_mini)
-                             # }
-                             # 
-                             # if (nrow(data) %% batch_size != 0) {
-                             #   start <- (n_minibatches) * batch_size + 1
-                             #   end <- nrow(data)
-                             #   mini_batch <- data[start:end, ]
-                             #   X_mini <- mini_batch[, -ncol(mini_batch)]
-                             #   Y_mini <- matrix(mini_batch[, ncol(mini_batch)], nrow = length(start:end), ncol = 1)
-                             #   mini_batches[[n_minibatches + 1]] <- list(X_mini, Y_mini)
-                             # }
-
-                             #return(mini_batches)
                            }
                          ),
                          
