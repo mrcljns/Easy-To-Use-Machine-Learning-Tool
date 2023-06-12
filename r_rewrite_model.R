@@ -320,6 +320,8 @@ NeuralNetwork <- R6Class("NeuralNetwork",
                              # Creating mini batches
                              batches = private$create_mini_batches(X, y, as.integer(batch_size))
                              
+                             prev_loss = 0
+                             
                              for (epo in 1:epochs){
                                loss = NULL
                                for (batch in batches){
@@ -330,6 +332,12 @@ NeuralNetwork <- R6Class("NeuralNetwork",
                                }
 
                                print(paste("[>] epoch=", epo, ", learning_rate=", lr, ", loss=", mean(loss), sep = ""))
+                               
+                               if (is.null(mean(loss)) || mean(loss) == prev_loss){
+                                 break
+                               }
+                               
+                               prev_loss = mean(loss)
 
                              }
                            },
