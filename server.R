@@ -573,6 +573,18 @@ server <- function(input, output, session) {
         data.index <- createDataPartition(modeling_df[, 1], p = 0.8, list = FALSE)
         train_data <- modeling_df[data.index, ]
         test_data <- modeling_df[-data.index, ]
+        
+        if (input$problem_type_choice == "classification"){
+          set.seed(42)
+          train_data <- downSample(x = train_data[values$feature_vars],
+                                   y = as.factor(train_data[, values$target_var]),
+                                   yname = values$target_var)
+          
+          train_data[values$target_var] <- as.integer(as.character(train_data[, values$target_var]))
+          
+          train_data <- train_data[sample(1:nrow(train_data)),]
+        }
+
         values$X_train <- train_data[values$feature_vars]
         values$y_train <- train_data[,values$target_var]
         values$X_test <- test_data[values$feature_vars]
