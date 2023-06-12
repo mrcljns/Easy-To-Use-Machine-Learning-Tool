@@ -55,7 +55,7 @@ ui <- dashboardPage(
           box(
             title = "Change Variable Type",
             selectInput("selected_variable", "Select Variable:", choices = NULL),
-            selectInput("selected_type", "Select Type:", choices = c("logical", "integer", "numeric", "character", "factor", "Date")),
+            selectInput("selected_type", "Select Type:", choices = c("logical", "integer", "numeric", "character")),
             actionButton("change_type_btn", "Change Type")
           )
         )
@@ -356,7 +356,13 @@ server <- function(input, output, session) {
     new_type <- input$selected_type
     
     if (selected_var %in% colnames(values$df)) {
-      converted_var <- try(as(values$df[[selected_var]], new_type), silent = TRUE)
+      if (new_type == "integer" && is.character(values$df[[selected_var]])) {
+        unique_values <- unique(values$df[[selected_var]])
+        converted_var <- match(values$df[[selected_var]], unique_values) - 1
+        converted_var <- as.integer(converted_var)
+      } else {
+        converted_var <- try(as(values$df[[selected_var]], new_type), silent = TRUE)
+      }
       
       if (inherits(converted_var, "try-error")) {
         showModal(
@@ -372,6 +378,7 @@ server <- function(input, output, session) {
       }
     }
   })
+  
   
   observe({
     req(values$df)
@@ -410,24 +417,31 @@ server <- function(input, output, session) {
     })
   })
   
-  output$heatmap_plot <- renderPlot({
-    req(input$generate_heatmap, input$variable_choice)
+  observeEvent(input$generate_heatmap, {
+    req(input$variable_choice)
     var <- input$variable_choice
-    selected_df <- values$df[, var, drop = FALSE]
     
+    selected_df <- values$df[, var, drop = FALSE]
     numeric_vars <- sapply(selected_df, is.numeric)
     selected_df <- selected_df[, numeric_vars, drop = FALSE]
     
-    if (any(is.na(selected_df))) {
-      plot.new()
-      text(0.5, 0.5, "Variables with missing values.\nPlease deal with NAs in the 'Data preprocessing' page.", cex = 1.2, col = "red", font = 2)
-    } else if (ncol(selected_df) > 1) {
-      corr_matrix <- cor(selected_df)
-      corrplot(corr_matrix, method = "color", tl.col = "black", tl.srt = 0)
-    } else {
-      plot.new()
-      text(0.5, 0.5, "Please select more than one numerical variable for the heatmap.", cex = 1.2, col = "red", font = 2)
-    }
+    output$heatmap_plot <- renderPlot({
+      if (ncol(selected_df) > 1) {
+        vars_with_missing <- colSums(is.na(selected_df)) > 0
+        
+        if (any(vars_with_missing)) {
+          missing_vars <- names(selected_df)[vars_with_missing]
+          plot.new()
+          text(0.5, 0.5, paste("Variables with missing values:\n", missing_vars, "\nPlease deal with NAs in the 'Data Preprocessing' page."), cex = 1.2, col = "red", font = 2)
+        } else {
+          corr_matrix <- cor(selected_df)
+          corrplot(corr_matrix, method = "color", tl.col = "black", tl.srt = 0)
+        }
+      } else {
+        plot.new()
+        text(0.5, 0.5, "Please select more than one numerical variable for the heatmap.", cex = 1.2, col = "red", font = 2)
+      }
+    })
   })
   
   observe({
@@ -637,7 +651,7 @@ server <- function(input, output, session) {
         }
         else if (input$problem_type_choice == "classification" && 
                  (!is.numeric(values$y_train) || !is.logical(values$y_train) ||
-                 length(unique(y_train)) != 2)){
+                  length(unique(y_train)) != 2)){
           showModal(
             modalDialog(
               title = "Wrong target type",
