@@ -24,7 +24,7 @@ ui <- dashboardPage(
         tabName = "upload_files",
         fluidRow(
           box(
-            width = 12,
+            width = 6,
             title = "Upload CSV File",
             fileInput("file1", "Choose CSV File",
                       multiple = FALSE,
