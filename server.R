@@ -661,7 +661,18 @@ server <- function(input, output, session) {
           preds <- net$predict(values$X_test)
           
           if (input$problem_type_choice == "regression"){
-            output$results <- renderPrint({ postResample(pred = preds, obs = values$y_test) })
+            if (!is.null(preds) || !is.infinite(preds)){
+              output$results <- renderPrint({
+                print(paste("MSE:", mean((preds-values$y_test)**2)))
+                print(paste("RMSE: ", sqrt(mean((preds-values$y_test)**2))))
+              })
+            }
+            else {
+              output$results <- renderPrint({
+                print(paste("MSE: ", NaN))
+                print(paste("RMSE: ", NaN))
+              })
+            }
           }
           else {
             output$results <- renderPrint({ confusionMatrix(data = as.factor(as.integer(preds)),
