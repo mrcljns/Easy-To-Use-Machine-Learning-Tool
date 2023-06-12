@@ -594,7 +594,7 @@ server <- function(input, output, session) {
     preds <- net$predict(values$X_test)
     
     if (input$problem_type_choice == "regression"){
-      output$results <- renderText({ postResample(pred = preds, obs = values$y_test) })
+      output$results <- renderPrint({ postResample(pred = preds, obs = values$y_test) })
     }
     else {
       output$results <- renderPrint({ confusionMatrix(data = as.factor(as.integer(preds)), 
