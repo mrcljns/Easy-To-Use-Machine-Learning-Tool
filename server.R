@@ -561,7 +561,8 @@ server <- function(input, output, session) {
   
   observeEvent(input$training_button, {
     
-    if (!is.null(input$target_variable) || !is.null(input$feature_variables)) {
+    if ((!is.null(input$target_variable) || !is.null(input$feature_variables)) && 
+        length(input$feature_variables) > 0) {
       values$target_var <- input$target_variable
       values$feature_vars <- input$feature_variables
       if (any(is.na(values$df[, c(values$target_var, values$feature_vars)]))) {
@@ -635,11 +636,12 @@ server <- function(input, output, session) {
           )
         }
         else if (input$problem_type_choice == "classification" && 
-                 !(is.numeric(values$y_train) || is.logical(values$y_train))){
+                 !(is.numeric(values$y_train) || is.logical(values$y_train)) &&
+                 length(unique(y_train)) == 2){
           showModal(
             modalDialog(
               title = "Wrong target type",
-              "For classification, target must be numeric/integer/logical.",
+              "For classification, target must be taking one of two values.",
               easyClose = TRUE
             )
           )
