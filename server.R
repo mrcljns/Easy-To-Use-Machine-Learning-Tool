@@ -665,12 +665,14 @@ server <- function(input, output, session) {
               output$results <- renderPrint({
                 print(paste("MSE:", mean((preds-values$y_test)**2)))
                 print(paste("RMSE: ", sqrt(mean((preds-values$y_test)**2))))
+                print(paste("MAPE: ", mean(abs((preds-values$y_test)/preds), na.rm=TRUE)))
               })
             }
             else {
               output$results <- renderPrint({
                 print(paste("MSE: ", NaN))
                 print(paste("RMSE: ", NaN))
+                print(paste("MAPE: ", NaN))
               })
             }
           }
