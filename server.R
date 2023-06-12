@@ -636,8 +636,8 @@ server <- function(input, output, session) {
           )
         }
         else if (input$problem_type_choice == "classification" && 
-                 !(is.numeric(values$y_train) || is.logical(values$y_train)) &&
-                 length(unique(y_train)) == 2){
+                 (!is.numeric(values$y_train) || !is.logical(values$y_train) ||
+                 length(unique(y_train)) != 2)){
           showModal(
             modalDialog(
               title = "Wrong target type",
