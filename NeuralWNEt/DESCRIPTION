@@ -1,0 +1,13 @@
+Package: NeuralWNEt
+Title: Package enabling training and making predictions using a neural network
+Version: 0.0.0.9000
+Authors@R: 
+    person("Maciej", "Lorens", , "mt.lorens@student.uw.edu.pl", role = c("aut", "cre"))
+Description: The package enables the user to create a neural network model, configure its hyperparameters, train it on chosen data and make new predictions. NeuralWNEt was created as a final project for the Advanced R course at the University of Warsaw.
+License: `use_mit_license()`
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+Imports: R6, Rcpp
+RoxygenNote: 7.2.3
+Collate: 
+    'NeuralNetwork.R'

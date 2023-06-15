@@ -261,7 +261,7 @@ ui <- dashboardPage(
               width = 4,
                 numericInput(
                   inputId = "epochs_num_choice",
-                  label = "Enter the random state seed:",
+                  label = "Enter the number of epochs:",
                   value = 1000,
                   min = 100,
                   max = 10000,

@@ -333,7 +333,10 @@ NeuralNetwork <- R6Class("NeuralNetwork",
 
                                print(paste("[>] epoch=", epo, ", learning_rate=", lr, ", loss=", mean(loss), sep = ""))
                                
-                               if (is.null(mean(loss)) || mean(loss) == prev_loss){
+                               if (is.nan(mean(loss))){
+                                 break
+                               }
+                               else if (mean(loss) == prev_loss){
                                  break
                                }
                                
