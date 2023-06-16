@@ -1,11 +1,9 @@
-#library(devtools)
-library(ggplot2)
-library(shiny)
-library(shinydashboard)
-library(caret)
-library(corrplot)
+if (!require('pacman')) install.packages('pacman')
+pacman::p_load(devtools, ggplot2, shiny, shinydashboard, caret, corrplot)
 
-#install_github("mrcljns/Easy-To-Use-Machine-Learning-Tool/NeuralWNEt", force = TRUE)
+if (!require(NeuralWNEt)){
+  install_github("mrcljns/Easy-To-Use-Machine-Learning-Tool/NeuralWNEt", force = TRUE)
+}
 
 library(NeuralWNEt)
 
