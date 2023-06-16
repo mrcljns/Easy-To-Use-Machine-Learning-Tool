@@ -393,10 +393,14 @@ NeuralNetwork = R6Class("NeuralNetwork",
                              # More defensive programming - checking if the data type is data frame or matrix
                              stopifnot(is.data.frame(X) || is.matrix(X))
 
+                             X <- as.matrix(X)
+
                              # If there are NaN present an error is raised
                              if(any(is.na(X)) || any(is.na(y))){
                                stop("Error: There are missing values in your data!")
                              }
+
+                             y <- as.vector(y)
 
                              # Checking the type of target
                              if(private$.problem_type == "classification"){
@@ -417,7 +421,7 @@ NeuralNetwork = R6Class("NeuralNetwork",
                              batch_size = as.integer(batch_size)
 
                              # Creating mini batches
-                             batches = private$create_mini_batches(X, y, as.integer(batch_size))
+                             batches = private$create_mini_batches(X, y, batch_size)
 
                              prev_loss = 0
 

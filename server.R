@@ -1,11 +1,15 @@
-  library(ggplot2)
-  library(shiny)
-  library(shinydashboard)
-  library(caret)
-  library(corrplot)
-  library(Rcpp)
-  
-  options(scipen=999)
+#library(devtools)
+library(ggplot2)
+library(shiny)
+library(shinydashboard)
+library(caret)
+library(corrplot)
+
+#install_github("mrcljns/Easy-To-Use-Machine-Learning-Tool/NeuralWNEt", force = TRUE)
+
+library(NeuralWNEt)
+
+options(scipen=999)
   
   ui <- dashboardPage(
     dashboardHeader(title = "Easy to use ML Tool"),
@@ -685,7 +689,6 @@
             )
           }
           else{
-            source('r_rewrite_model.R')
             
             net <- NeuralNetwork$new(input$random_state_choice, input$hidden_layer_num_choice,
                                      input$hidden_neuron_num_choice, input$problem_type_choice,
@@ -695,9 +698,9 @@
             
             net$train(values$X_train, values$y_train, input$epochs_num_choice, input$learning_rate_choice,
                       input$batch_size_choice)
-            
+
             preds <- net$predict(values$X_test)
-            
+
             if (input$problem_type_choice == "regression"){
               if (!is.null(preds) || !is.infinite(preds)){
                 output$results <- renderPrint({
